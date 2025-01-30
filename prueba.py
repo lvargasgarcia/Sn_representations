@@ -5,6 +5,10 @@ import numpy as np
 import math
 from fractions import Fraction
 
+def print_matrix(matrix):
+    for sublista in matrix:
+        print(f"[{' '.join(map(str, sublista))}]")
+
 def search_young_tableau(tableau):
     shape = tableau.shape()
     n = shape.getn()
@@ -22,28 +26,49 @@ def search_young_tableau(tableau):
 
     return None  # Si no se encuentra, devolver None
 
+def n_pos(tableau):
+    shape = tableau.shape()
+    height = shape.height()
+    n = shape.getn()
+    for i in range(height):
+        for j in range(shape[i]):
+            if tableau[i, j] == n:
+                n1 = i
+                return n1
+    return None 
 
-# T=Snob2.StandardYoungTableaux(lamb)
+def get_subpartition(key, partition):
+    resp = [] 
+    for i in range(partition.height()):
+          k = partition[i] 
+          if key == i:
+               k = k - 1
+          resp.append(k)
+    while resp and resp[-1] == 0:
+        resp.pop()
 
-# tableaux_dict = {}
+    return Snob2.IntegerPartition(resp)
 
-# for i in range(len(T)):
-#     tableau = T[i]
-#     key = search_young_tableau(tableau)
+def branch(partition):
+    tableaux_dict = {}
+    T = Snob2.StandardYoungTableaux(partition)
+    for i in range(len(T)):
+        tableau = T[i]
+        key = n_pos(tableau)
+        if (key != None) and key not in tableaux_dict:
+            tableaux_dict[key] = tableau
     
-#     if key and key not in tableaux_dict:  # Solo almacenar el primero encontrado
-#         tableaux_dict[key] = tableau
+    ordered_1stlev = sorted(tableaux_dict.keys(), key=lambda t: t)
+    partitions = []
+    
+    for key in ordered_1stlev:
+        gamma = get_subpartition(key, partition)
+        partitions.append(gamma)
+    
+    return partitions
 
-
-# ordered_2ndlev = sorted(tableaux_dict.keys(), key=lambda t: int(f"{t[0][0]}{t[1][0]}"))
-# print(ordered_2ndlev)
-
-# Aplicamos el teorema de Young del artículo de Clausen para construir la matriz de la representación 
-
-# Antes, necesitamos una funcion que nos diga la particion asociada a una cadena gamma (usamos el símbolo de Yamanouchi)
 
 def get_partition_from_gamma(y_symbol, partition):
-    n = partition.getn()
     resp = [] 
 
     for i in range(partition.height()):
@@ -263,3 +288,53 @@ def decompress(matrix):
 # lamb=Snob2.IntegerPartition([4,2,1,1])
 # matrix = build_irrep(lamb, mode="YKR")
 # pretty_print(matrix)
+
+def direct_sum(matrices):
+    n = len(matrices)
+    
+    total_rows = sum(len(mat) for mat in matrices)
+    total_cols = sum(len(mat[0]) for mat in matrices)
+    
+    result = [[[0, 0, 0] for _ in range(total_cols)] for _ in range(total_rows)]
+    
+    row_start = 0
+    col_start = 0
+    
+    for mat in matrices:
+        mat_rows = len(mat)
+        mat_cols = len(mat[0])
+        
+        for i in range(mat_rows):
+            for j in range(mat_cols):
+                result[row_start + i][col_start + j] = mat[i][j]
+        
+        row_start += mat_rows
+        col_start += mat_cols
+    
+    for i in range(total_rows):
+        for j in range(total_cols):
+            if result[i][j] == [0, 0, 0]:
+                result[i][j] = [result[i][i][0], result[j][j][0], 0]
+    
+    return result
+
+def build_irrep_of_transposition(partition, t_n, mode="YKR"):
+    
+    # Caso base, la partición es de n elementos y queremos evaluar la representación en t_n
+    
+    n = partition.getn()
+    if t_n == n:
+        return build_irrep(partition, mode)
+    else:
+    
+        # En otro caso, tenemos que expandir el árbol, es decir
+        # Tenemos que calcular todas las transposiciones cuyos tableros de young salen de la actual
+    
+        partitions = branch(partition)
+        submatrix_list = []
+        for part in partitions:
+            submatrix = build_irrep_of_transposition(part, t_n, mode)
+            submatrix_list.append(submatrix)
+        resp = direct_sum(submatrix_list)
+        return resp
+    

@@ -1,7 +1,6 @@
 import torch
 import snob as Snob2
 import cnine
-
 from prueba import *
 
 def transponer_diagonal_secundaria(matriz):
@@ -25,21 +24,26 @@ def compare_matrices(matrix1, matrix2):
             
     return True
 
+def generate_transposition(i, n):
+    initial = [i for i in range(1, n+1)]
+    initial[i-2], initial[i-1] = initial[i-1], initial[i-2]
+    return Snob2.SnElement(initial)
+
 # Comparación de resultados del módulo que he creado con snob2, usaremos el modo "YOR" en mi módulo para comparar resultados
 
 # Para S_n con n en [1..8], probaremos sigma^alpha (t_n) siendo alpha particiones con distinto orden
 
-rho = Snob2.SnIrrep([4,2,1,1])
+rho = Snob2.SnIrrep([5,1,1,1])
 
-rep_snob = transponer_diagonal_secundaria(rho[Snob2.SnElement([1,2,3,4,5,6,8,7])].torch().tolist()) 
-mi_rep = build_irrep(Snob2.IntegerPartition([4,2,1,1]), mode="YOR")
+rep_snob = transponer_diagonal_secundaria(rho[Snob2.SnElement([2,1,3,4,5,6,7,8])].torch().tolist()) 
+mi_rep = build_irrep_of_transposition(Snob2.IntegerPartition([5,1,1,1]), 2, mode="YOR")
 mi_rep = decompress(mi_rep).tolist()
 
 print("------- Resultado de snob -------")
-print(rep_snob)
+print_matrix(rep_snob)
 print("------- Resultado de mi módulo -------")
-print(mi_rep)
+print_matrix(mi_rep)
 print("------- Comparación -------")
 print(compare_matrices(rep_snob, mi_rep))
 
-    
+
