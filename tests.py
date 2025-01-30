@@ -35,8 +35,8 @@ def generate_transposition(i, n):
 
 rho = Snob2.SnIrrep([5,1,1,1])
 
-rep_snob = transponer_diagonal_secundaria(rho[Snob2.SnElement([2,1,3,4,5,6,7,8])].torch().tolist()) 
-mi_rep = build_irrep_of_transposition(Snob2.IntegerPartition([5,1,1,1]), 2, mode="YOR")
+rep_snob = transponer_diagonal_secundaria(rho[Snob2.SnElement([1,2,3,5,4,6,7,8])].torch().tolist()) 
+mi_rep = build_irrep_of_transposition(Snob2.IntegerPartition([5,1,1,1]), 5, mode="YOR")
 mi_rep = decompress(mi_rep).tolist()
 
 print("------- Resultado de snob -------")
