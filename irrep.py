@@ -5,7 +5,7 @@ import numpy as np
 import math
 from fractions import Fraction
 from permutaciones import express_into_adyacent_transpositions
-from matrix_utils import decompress
+from matrix_utils import decompress, pretty_print
 
 # Aquí se implementará el objeto que representa una representación irreducible de una partición alpha
 
@@ -293,6 +293,39 @@ class Irrep:
             resp = self._direct_sum(submatrix_list)
             return resp
 
+    def _block_matrices_mul(self, matrix1, matrix2):
+        
+        """
+        Multiplica dos matrices por bloques.
+
+        Args:
+            matrix1 (list): La primera matriz por bloques.
+            matrix2 (list): La segunda matriz por bloques.
+        """
+        
+        # Obtenemos las dimensiones de las matrices
+        rows1 = len(matrix1)
+        cols1 = len(matrix1[0])
+        result = [[[0, 0, 0] for _ in range(cols1)] for _ in range(rows1)]
+
+        if rows1 != len(matrix2) or cols1 != len(matrix2[0]):
+            raise ValueError("Matrices must have the same dimensions")
+        
+        for i in range(rows1):
+            for j in range(cols1):
+                if matrix1[i][j][1] != matrix2[i][j][0]:
+                    raise ValueError("Incompatible block dimensions", "i =", i, "j =", j)
+                result[i][j][0] = matrix1[i][j][0]
+                result[i][j][1] = matrix2[i][j][1]
+        
+        for i in range(rows1):
+            for j in range(cols1):
+                for k in range(cols1):
+                    result[i][j][2] += matrix1[i][k][2] * matrix2[k][j][2]
+        
+        return result
+        
+    
     def evaluate(self, pi):
         """
         Construye la representación irreducible de una permutación.
@@ -313,6 +346,17 @@ class Irrep:
         for transposition in transpositions[1:]:
             if self.matrices[transposition-2] is None:
                 self.matrices[transposition-2] = self._build_irrep_of_transposition(self.partition, transposition, self.mode)
-            currMatrix = np.matmul(currMatrix, np.array(decompress(self.matrices[transposition-2])).tolist())
+            currMatrix = currMatrix@np.array(decompress(self.matrices[transposition-2]).tolist())
 
         return currMatrix
+
+        # if self.matrices[transpositions[0]-2] is None:
+        #     self.matrices[transpositions[0]-2] = self._build_irrep_of_transposition(self.partition, transpositions[0], self.mode)
+        # currMatrix = self.matrices[transpositions[0]-2]
+
+        # for transposition in transpositions[1:]:
+        #     if self.matrices[transposition-2] is None:
+        #         self.matrices[transposition-2] = self._build_irrep_of_transposition(self.partition, transposition, self.mode)
+        #     currMatrix = self._block_matrices_mul(currMatrix, self.matrices[transposition-2])
+
+        # return np.array(decompress(currMatrix).tolist())

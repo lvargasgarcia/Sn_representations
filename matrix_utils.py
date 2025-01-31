@@ -25,8 +25,8 @@ def decompress(matrix):
             block_rows, block_cols, coef = block
 
             # Convertimos el coeficiente a número flotante si es una fracción
-            if isinstance(coef, Fraction):
-                coef = coef.numerator / coef.denominator
+            # if isinstance(coef, Fraction):
+            #     coef = coef.numerator / coef.denominator
 
             # Crear un bloque de ceros de tamaño block_rows x block_cols
             if block_rows == block_cols:

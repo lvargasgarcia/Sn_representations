@@ -9,7 +9,16 @@ import snob as Snob2
 # Por ejemplo, si pi = ----------- entonces express_into_adyacent_transpositions(pi) = [3,5] porque pi = (2 3) (4 5)
 #                      (1 3 2 5 4)
 
-
+def remove_consecutive_duplicates(lst):
+    if not lst:
+        return []
+    
+    result = [lst[0]]
+    for i in range(1, len(lst)):
+        if lst[i] != lst[i - 1]:
+            result.append(lst[i])
+    
+    return result
 
 def get_list_from_SnElement(pi):
     return list(map(int, str(pi).strip("[]").split()))
@@ -66,7 +75,7 @@ def express_into_adyacent_transpositions(pi):
     adyacent_transpositions = []
     for transposition in transpositions:
         adyacent_transpositions += express_transposition_into_adyacent_transpositions(transposition)
-    return adyacent_transpositions
+    return remove_consecutive_duplicates(adyacent_transpositions)
     
 
 # Algunas pruebas:
