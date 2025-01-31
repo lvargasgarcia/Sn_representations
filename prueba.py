@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import math
 from fractions import Fraction
+from permutaciones import *
 
 def print_matrix(matrix):
     for sublista in matrix:
@@ -337,4 +338,11 @@ def build_irrep_of_transposition(partition, t_n, mode="YKR"):
             submatrix_list.append(submatrix)
         resp = direct_sum(submatrix_list)
         return resp
-    
+
+
+def build_irrep_of_permutation(partition, pi, mode="YKR"):
+    transpositions = express_into_adyacent_transpositions(pi)
+    currMatrix = np.array(decompress(build_irrep_of_transposition(partition, transpositions[0], mode)))
+    for transposition in transpositions[1:]:
+        currMatrix = currMatrix@np.array(decompress(build_irrep_of_transposition(partition, transposition, mode)).tolist())
+    return currMatrix
