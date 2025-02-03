@@ -324,6 +324,10 @@ class Irrep:
                     result[i][j][2] += matrix1[i][k][2] * matrix2[k][j][2]
         
         return result
+    
+    def _apply_correction_transformation(self, matriz):
+        n = len(matriz)
+        return [[matriz[n - 1 - j][n - 1 - i] for j in range(n)] for i in range(n)]
         
     
     def evaluate(self, pi):
@@ -341,12 +345,19 @@ class Irrep:
 
         if self.matrices[transpositions[0]-2] is None:
             self.matrices[transpositions[0]-2] = self._build_irrep_of_transposition(self.partition, transpositions[0], self.mode)
-        currMatrix = np.array(decompress(self.matrices[transpositions[0]-2]).tolist())
+        
+        if self.mode == "YOR":
+            currMatrix = np.array(self._apply_correction_transformation(decompress(self.matrices[transpositions[0]-2]).tolist()))
+        else:
+            currMatrix = np.array(decompress(self.matrices[transpositions[0]-2]).tolist())
 
         for transposition in transpositions[1:]:
             if self.matrices[transposition-2] is None:
                 self.matrices[transposition-2] = self._build_irrep_of_transposition(self.partition, transposition, self.mode)
-            currMatrix = currMatrix@np.array(decompress(self.matrices[transposition-2]).tolist())
+            if self.mode == "YOR":
+                currMatrix = currMatrix@np.array(self._apply_correction_transformation(decompress(self.matrices[transposition-2]).tolist()))
+            else:
+                currMatrix = currMatrix@np.array(decompress(self.matrices[transposition-2]).tolist())
 
         return currMatrix
 

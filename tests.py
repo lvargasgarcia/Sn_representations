@@ -5,9 +5,7 @@ from irrep import Irrep
 from permutaciones import *
 from matrix_utils import *
 
-def transponer_diagonal_secundaria(matriz):
-    n = len(matriz)
-    return [[matriz[n - 1 - j][n - 1 - i] for j in range(n)] for i in range(n)]
+
 
 def compare_matrices(matrix1, matrix2):
     # Verificar si las matrices tienen el mismo tamaño
@@ -171,56 +169,62 @@ def generate_transposition(i, n):
 # print("Maxerror", compare_matrices(mi_rep, mi_mat_final))
 
 partition = [2,1,1]
-pi = Snob2.SnElement([2,3,4,1])
+# pi = [2,3,4,1]
+# pi = Snob2.SnElement(pi)
 
-rho = Snob2.SnIrrep(partition)
-mi_rho = Irrep(Snob2.IntegerPartition(partition), mode="YOR")
+# rho = Snob2.SnIrrep(partition)
+# mi_rho = Irrep(Snob2.IntegerPartition(partition), mode="YOR")
 
-print("Permutación:", pi)
+# print("Permutación:", pi)
 
-print("Descomposicion en transposiciones adyacentes de pi:")
-print(express_into_adyacent_transpositions(pi))
+# print("Descomposicion en transposiciones adyacentes de pi:")
+# print(express_into_adyacent_transpositions(pi))
 
-rep_snob = transponer_diagonal_secundaria(rho[pi].torch().tolist())
-print("------ Matriz de representación de Snob ------")
-print_matrix(rep_snob)
+# rep_snob = (rho[pi].torch().tolist())
+# print("------ Matriz de representación de Snob ------")
+# print_matrix(rep_snob)
 
-mi_rep = mi_rho.evaluate(pi)
-print("------ Matriz de representación de mi módulo ------")
-print_matrix(mi_rep)
+# mi_rep = mi_rho.evaluate(pi)
 
+# print("------ Matriz de representación de mi módulo ------")
+# print_matrix(apply_correction_transformation(mi_rep))
 
-print("------ Comparación ------")
-print("Maxerror", compare_matrices(rep_snob, mi_rep))
+# print("------ Comparación ------")
+# print("Maxerror", compare_matrices(rep_snob, mi_rep))
 
-mi_rep_2 = mi_rho.evaluate(Snob2.SnElement([2,1,3,4]))
-mi_rep_3 = mi_rho.evaluate(Snob2.SnElement([1,3,2,4]))
-mi_rep_4 = mi_rho.evaluate(Snob2.SnElement([1,2,4,3]))
+# mi_rep_2 = mi_rho.evaluate(Snob2.SnElement([2,1,3,4]))
+# mi_rep_3 = mi_rho.evaluate(Snob2.SnElement([1,3,2,4]))
+# mi_rep_4 = mi_rho.evaluate(Snob2.SnElement([1,2,4,3]))
 
-print("Maxerror", compare_matrices(rep_snob, mi_rep_4@mi_rep_3@mi_rep_2@mi_rep_3@mi_rep_2))
+# print_matrix(apply_correction_transformation(mi_rep_2@mi_rep_3@mi_rep_4))
+
+# print("Maxerror", compare_matrices(rep_snob, mi_rep_4@mi_rep_3@mi_rep_2@mi_rep_3@mi_rep_2))
 
 print("----- Pruebas en transposiciones -----")
 
 error = []
+
+rho = Snob2.SnIrrep(partition)
+mi_rho = Irrep(Snob2.IntegerPartition(partition), mode="YOR")
 
 for n in range(2,5):
     
     pi = [i for i in range(1, 5)]
     pi[n-2], pi[n-1] = pi[n-1], pi[n-2]
     print(pi)
-    pi = Snob2.SnElement(pi)
 
+    pi = Snob2.SnElement(pi)
 
     print("Descomposicion en transposiciones adyacentes de pi:")
     print(express_into_adyacent_transpositions(pi))
 
-    rep_snob = transponer_diagonal_secundaria(rho[pi].torch().tolist())
-    # print("------ Matriz de representación de Snob ------")
-    # print_matrix(rep_snob)
+    rep_snob = rho[pi].torch().tolist()
+    print("------ Matriz de representación de Snob ------")
+    print_matrix(rep_snob)
 
     mi_rep = mi_rho.evaluate(pi)
-    # print("------ Matriz de representación de mi módulo ------")
-    # print_matrix(mi_rep)
+    print("------ Matriz de representación de mi módulo ------")
+    print_matrix(mi_rep)
 
     error.append(compare_matrices(rep_snob, mi_rep))
 
@@ -229,3 +233,22 @@ for n in range(2,5):
 
 print("Errores")
 print(error)
+
+s_2 = np.array(rho[2,1,3,4].torch().tolist())
+s_3 = np.array(rho[1,3,2,4].torch().tolist())
+s_4 = np.array(rho[1,2,4,3].torch().tolist())
+
+t_2 = mi_rho.evaluate(Snob2.SnElement([2,1,3,4]))
+t_3 = mi_rho.evaluate(Snob2.SnElement([1,3,2,4]))
+t_4 = mi_rho.evaluate(Snob2.SnElement([1,2,4,3]))
+
+print(compare_matrices(s_2, t_2))
+print(compare_matrices(s_3, t_3))
+print(compare_matrices(s_4, t_4))
+
+print("---------------------------------")
+print_matrix(rho[2,3,4,1].torch().tolist())
+print("-----------------------")
+print_matrix(s_2@s_3@s_4)
+print("-----------------------")
+print_matrix(t_2@t_3@t_4)

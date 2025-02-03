@@ -1,5 +1,6 @@
 import torch
 import snob as Snob2
+from sympy.combinatorics import Permutation
 
 
 # En este fichero se implementa la descomposición de una permutación de S_n en producto de transposiciones adyacentes
@@ -9,87 +10,102 @@ import snob as Snob2
 # Por ejemplo, si pi = ----------- entonces express_into_adyacent_transpositions(pi) = [3,5] porque pi = (2 3) (4 5)
 #                      (1 3 2 5 4)
 
-def remove_consecutive_duplicates(lst):
-    if not lst:
-        return []
+# def remove_consecutive_duplicates(lst):
+#     if not lst:
+#         return []
     
-    result = [lst[0]]
-    for i in range(1, len(lst)):
-        if lst[i] != lst[i - 1]:
-            result.append(lst[i])
+#     result = [lst[0]]
+#     for i in range(1, len(lst)):
+#         if lst[i] != lst[i - 1]:
+#             result.append(lst[i])
     
-    return result
+#     return result
 
 def get_list_from_SnElement(pi):
     return list(map(int, str(pi).strip("[]").split()))
 
-def image(pi, n):
-    return pi[n-1]
+# def image(pi, n):
+#     return pi[n-1]
 
-def express_into_disjoint_cycles(pi):
-    pi = get_list_from_SnElement(pi)
-    n = len(pi)
-    visited_dict = {i: False for i in range(1, n+1)}
-    cycles = []
-    for i in range(1, n+1):
-        # Si el número no ha sido visitado, entonces comenzamos un nuevo ciclo
-        if not visited_dict[i]:
-            cycle = []
-            j = i
-            while not visited_dict[j]:
-                visited_dict[j] = True
-                cycle.append(j)
-                j = image(pi, j)
-            cycles.append(cycle)
-    return cycles
+# def express_into_disjoint_cycles(pi):
+#     pi = get_list_from_SnElement(pi)
+#     n = len(pi)
+#     visited_dict = {i: False for i in range(1, n+1)}
+#     cycles = []
+#     for i in range(1, n+1):
+#         # Si el número no ha sido visitado, entonces comenzamos un nuevo ciclo
+#         if not visited_dict[i]:
+#             cycle = []
+#             j = i
+#             while not visited_dict[j]:
+#                 visited_dict[j] = True
+#                 cycle.append(j)
+#                 j = image(pi, j)
+#             cycles.append(cycle)
+#     return cycles
 
-def express_cycle_into_transpositions(cycle):
-    if len(cycle) == 1:
-        return None
-    transpositions = []
-    initialElem = cycle[0]
-    for elem in reversed(cycle):
-        if elem == cycle[0]:
-            break
-        transpositions.append((initialElem, elem))
-    return transpositions
+# def express_cycle_into_transpositions(cycle):
+#     if len(cycle) == 1:
+#         return None
+#     transpositions = []
+#     initialElem = cycle[0]
+#     for elem in reversed(cycle):
+#         if elem == cycle[0]:
+#             break
+#         transpositions.append((initialElem, elem))
+#     return transpositions
 
-def express_into_transpositions(pi):
-    cycles = express_into_disjoint_cycles(pi)
-    transpositions = []
-    for cycle in cycles:
-        trans = express_cycle_into_transpositions(cycle)
-        if trans != None:
-            transpositions += trans
-    return transpositions
+# def express_into_transpositions(pi):
+#     cycles = express_into_disjoint_cycles(pi)
+#     transpositions = []
+#     for cycle in cycles:
+#         trans = express_cycle_into_transpositions(cycle)
+#         if trans != None:
+#             transpositions += trans
+#     return transpositions
 
-def express_transposition_into_adyacent_transpositions(transposition):
+def express_transposition_into_adyacent_transpositions_right(transposition):
     (a,b) = transposition
     if a + 1 == b:
         return [b]
     else:
-        return express_transposition_into_adyacent_transpositions((a+1,b)) + [a+1]
+        return express_transposition_into_adyacent_transpositions_right((a+1,b)) + [a+1]
+    
+def express_transposition_into_adyacent_transpositions(transposition):
+    list_right = express_transposition_into_adyacent_transpositions_right(transposition)
+    list_left = list_right[1:][::-1]
+    return list_left + list_right
 
 def express_into_adyacent_transpositions(pi):
-    transpositions = express_into_transpositions(pi)
+    transpositions = Permutation([0] + get_list_from_SnElement(pi)).transpositions()
     adyacent_transpositions = []
     for transposition in transpositions:
         adyacent_transpositions += express_transposition_into_adyacent_transpositions(transposition)
-    return remove_consecutive_duplicates(adyacent_transpositions)
+    return adyacent_transpositions
     
 
-# Algunas pruebas:
+# # Algunas pruebas:
 # n = 4
 # G = Snob2.Sn(n)
 # for i in range(len(G)):
 #     print("--------------------")
-#     cycles = express_into_disjoint_cycles(G[i])
-#     print(f"La permutación {G[i]} se descompone en los ciclos {cycles}")
-#     transpositions = express_into_transpositions(G[i])
-#     print(f"La permutación {G[i]} se descompone en las transposiciones {transpositions}")
-#     adyacent_transpositions = express_into_adyacent_transpositions(G[i])
-#     print(f"La permutación {G[i]} se descompone en las transposiciones adyacentes {adyacent_transpositions}")
+#     pi = [0] + get_list_from_SnElement(G[i])
+#     print(pi[1:])
+#     transpositions = Permutation(pi).transpositions()
+#     print(f"La permutación {pi} se descompone en las transposiciones {transpositions}")
+#     adyacent_transpositions = express_into_adyacent_transpositions(pi)
+#     print(f"La permutación {pi} se descompone en las transposiciones adyacentes {adyacent_transpositions}")
 #     print("--------------------")
+
+# pi = Snob2.SnElement([2,3,4,1])
+# pi = [0] + get_list_from_SnElement(pi)
+# print(pi[1:])
+# transpositions = Permutation(pi).transpositions()
+# print(f"La permutación {pi} se descompone en las transposiciones {transpositions}")
+# adyacent_transpositions = express_into_adyacent_transpositions(pi)
+# print(f"La permutación {pi} se descompone en las transposiciones adyacentes {adyacent_transpositions}")
+# print("--------------------")
+
 
 
 
