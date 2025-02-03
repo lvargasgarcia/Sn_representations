@@ -64,6 +64,24 @@ def get_list_from_SnElement(pi):
 #             transpositions += trans
 #     return transpositions
 
+# Esta función sirve para limpiar una lista de transposiciones adyacentes, ya que una transposicion es su propia inversa
+
+def reduce(list):
+    i = 0
+    reduced = False
+    while i < len(list)-1:
+        if list[i] == list[i+1]:
+            list.pop(i)
+            list.pop(i)
+            reduced = True
+        i = i + 1
+    return reduced
+    
+
+def clean(list):
+    return clean(list) if reduce(list) else list
+
+
 def express_transposition_into_adyacent_transpositions_right(transposition):
     (a,b) = transposition
     if a + 1 == b:
@@ -81,7 +99,7 @@ def express_into_adyacent_transpositions(pi):
     adyacent_transpositions = []
     for transposition in transpositions:
         adyacent_transpositions += express_transposition_into_adyacent_transpositions(transposition)
-    return adyacent_transpositions
+    return clean(adyacent_transpositions)
     
 
 # # Algunas pruebas:
@@ -98,10 +116,6 @@ def express_into_adyacent_transpositions(pi):
 #     print("--------------------")
 
 # pi = Snob2.SnElement([2,3,4,1])
-# pi = [0] + get_list_from_SnElement(pi)
-# print(pi[1:])
-# transpositions = Permutation(pi).transpositions()
-# print(f"La permutación {pi} se descompone en las transposiciones {transpositions}")
 # adyacent_transpositions = express_into_adyacent_transpositions(pi)
 # print(f"La permutación {pi} se descompone en las transposiciones adyacentes {adyacent_transpositions}")
 # print("--------------------")
