@@ -117,4 +117,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+*.log
+/.vscode
+
 # End of file
