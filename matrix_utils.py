@@ -2,7 +2,6 @@ import torch
 import snob as Snob2
 import sys
 import numpy as np
-from fractions import Fraction
 
 
 def decompress(matrix):

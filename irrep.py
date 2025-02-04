@@ -292,44 +292,17 @@ class Irrep:
                 submatrix_list.append(submatrix)
             resp = self._direct_sum(submatrix_list)
             return resp
-
-    # def _block_matrices_mul(self, matrix1, matrix2):
-        
-    #     """
-    #     Multiplica dos matrices por bloques.
-
-    #     Args:
-    #         matrix1 (list): La primera matriz por bloques.
-    #         matrix2 (list): La segunda matriz por bloques.
-    #     """
-        
-    #     Obtenemos las dimensiones de las matrices
-    #     rows1 = len(matrix1)
-    #     cols1 = len(matrix1[0])
-    #     result = [[[0, 0, 0] for _ in range(cols1)] for _ in range(rows1)]
-
-    #     if rows1 != len(matrix2) or cols1 != len(matrix2[0]):
-    #         raise ValueError("Matrices must have the same dimensions")
-        
-    #     for i in range(rows1):
-    #         for j in range(cols1):
-    #             if matrix1[i][j][1] != matrix2[i][j][0]:
-    #                 raise ValueError("Incompatible block dimensions", "i =", i, "j =", j)
-    #             result[i][j][0] = matrix1[i][j][0]
-    #             result[i][j][1] = matrix2[i][j][1]
-        
-    #     for i in range(rows1):
-    #         for j in range(cols1):
-    #             for k in range(cols1):
-    #                 result[i][j][2] += matrix1[i][k][2] * matrix2[k][j][2]
-        
-    #     return result
     
     def _apply_correction_transformation(self, matriz):
         n = len(matriz)
         return [[matriz[n - 1 - j][n - 1 - i] for j in range(n)] for i in range(n)]
-        
     
+    def _calc_matrix(self, transposition):
+        if self.mode == "YOR":
+               self.matrices[transposition-2] = np.array(self._apply_correction_transformation(decompress(self._build_irrep_of_transposition(self.partition, transposition, self.mode)).tolist())) 
+        else:
+               self.matrices[transposition-2] = np.array(decompress(self._build_irrep_of_transposition(self.partition, transposition, self.mode)).tolist())
+
     def evaluate(self, pi):
         """
         Construye la representación irreducible de una permutación.
@@ -344,20 +317,14 @@ class Irrep:
         transpositions = express_into_adyacent_transpositions(pi)
 
         if self.matrices[transpositions[0]-2] is None:
-            self.matrices[transpositions[0]-2] = self._build_irrep_of_transposition(self.partition, transpositions[0], self.mode)
+            self._calc_matrix(transpositions[0])
         
-        if self.mode == "YOR":
-            currMatrix = np.array(self._apply_correction_transformation(decompress(self.matrices[transpositions[0]-2]).tolist()))
-        else:
-            currMatrix = np.array(decompress(self.matrices[transpositions[0]-2]).tolist())
+        currMatrix = self.matrices[transpositions[0]-2]
 
         for transposition in transpositions[1:]:
             if self.matrices[transposition-2] is None:
-                self.matrices[transposition-2] = self._build_irrep_of_transposition(self.partition, transposition, self.mode)
-            if self.mode == "YOR":
-                currMatrix = currMatrix@np.array(self._apply_correction_transformation(decompress(self.matrices[transposition-2]).tolist()))
-            else:
-                currMatrix = currMatrix@np.array(decompress(self.matrices[transposition-2]).tolist())
+                self._calc_matrix(transposition)
+            currMatrix = currMatrix @ self.matrices[transposition-2]
 
         return currMatrix
 

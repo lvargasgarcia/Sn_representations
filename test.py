@@ -45,13 +45,13 @@ class TestIrrepRepresentation(unittest.TestCase):
         for i in range(len(G)):
             if i != 0:
                 pi = G[i]
-                print("La permutación es", pi)
-                print("La descomposición de la permutación en transposiciones adyacentes es: ", express_into_adyacent_transpositions(pi))
+                # print("La permutación es", pi)
+                # print("La descomposición de la permutación en transposiciones adyacentes es: ", express_into_adyacent_transpositions(pi))
                 
                 mi_matriz = mi_rho.evaluate(pi)
                 matriz_snob = rho[pi].torch().tolist()
                 
-                self.assertTrue(compare_matrices(mi_matriz, matriz_snob), "Las matrices no coinciden")
+                self.assertTrue(np.allclose(mi_matriz, matriz_snob, atol=1e-6), "Las matrices no coinciden")
 
     
     def test_partitions_representations(self):
