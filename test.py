@@ -82,9 +82,11 @@ class TestIrrepRepresentation(unittest.TestCase):
             print("Probando la partición", partition)
             self._test_irrep_representation(partition)
         
-        duration = (time.time() - t_0) / 60
-        print("Tiempo de ejecución:", duration, "minutos")
+        duration = (time.time() - t_0)
+        print("Tiempo de ejecución:", duration, "seconds")
         log_test_result("test_partitions_representations_fast", duration)
+
+    
 
         
                 
