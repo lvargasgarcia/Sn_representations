@@ -5,7 +5,8 @@ import numpy as np
 import math
 from fractions import Fraction
 from permutaciones import express_into_adyacent_transpositions
-from matrix_utils import decompress, pretty_print
+from matrix_utils import decompress_YOR, decompress, print_matrix
+from functools import reduce
 
 # Aquí se implementará el objeto que representa una representación irreducible de una partición alpha
 
@@ -38,8 +39,8 @@ class Irrep:
             raise ValueError("Mode must be 'YKR', 'YSR', or 'YOR'")
         self.partition = partition
         self.n = partition.getn()
-        self.matrices = [None for i in range(self.n)]
         self.mode = mode
+        self._calculate_transpositions_and_mcm()
     
     def _search_young_tableau(self, tableau):
         shape = tableau.shape()
@@ -293,15 +294,11 @@ class Irrep:
             resp = self._direct_sum(submatrix_list)
             return resp
     
-    def _apply_correction_transformation(self, matriz):
-        n = len(matriz)
-        return [[matriz[n - 1 - j][n - 1 - i] for j in range(n)] for i in range(n)]
-    
     def _calc_matrix(self, transposition):
         if self.mode == "YOR":
-               self.matrices[transposition-2] = np.array(self._apply_correction_transformation(decompress(self._build_irrep_of_transposition(self.partition, transposition, self.mode)).tolist())) 
+               self.matrices[transposition-2] = decompress_YOR(self._build_irrep_of_transposition(self.partition, transposition, self.mode))
         else:
-               self.matrices[transposition-2] = np.array(decompress(self._build_irrep_of_transposition(self.partition, transposition, self.mode)).tolist())
+               self.matrices[transposition-2] = decompress(self._build_irrep_of_transposition(self.partition, transposition, self.mode))
 
     def evaluate(self, pi):
         """
@@ -313,28 +310,50 @@ class Irrep:
         Returns:
             np.ndarray: La matriz de la representación irreducible de la permutación.
         """
-        
         transpositions = express_into_adyacent_transpositions(pi)
-
-        if self.matrices[transpositions[0]-2] is None:
-            self._calc_matrix(transpositions[0])
-        
         currMatrix = self.matrices[transpositions[0]-2]
-
         for transposition in transpositions[1:]:
-            if self.matrices[transposition-2] is None:
-                self._calc_matrix(transposition)
+            if max(abs(np.max(currMatrix)), abs(np.min(currMatrix))) > 1e10:
+                currMatrix = np.array(currMatrix, dtype=np.float64)
+            
             currMatrix = currMatrix @ self.matrices[transposition-2]
+
+        if self.mode == "YOR":
+            return currMatrix
+        else:
+            # Si el modo es YKR o YSR hay que recordar que hemos sacado factor común el mcm de los denominadores
+            # Se hace con un bucle para evitar overflow en mcm^k
+            for _ in range(len(transpositions)):
+                currMatrix = np.array(currMatrix/self.mcm)
 
         return currMatrix
 
-        # if self.matrices[transpositions[0]-2] is None:
-        #     self.matrices[transpositions[0]-2] = self._build_irrep_of_transposition(self.partition, transpositions[0], self.mode)
-        # currMatrix = self.matrices[transpositions[0]-2]
+    def _mcm(self,a , b):
+        return abs(a*b) // math.gcd(a,b)
 
-        # for transposition in transpositions[1:]:
-        #     if self.matrices[transposition-2] is None:
-        #         self.matrices[transposition-2] = self._build_irrep_of_transposition(self.partition, transposition, self.mode)
-        #     currMatrix = self._block_matrices_mul(currMatrix, self.matrices[transposition-2])
+    def _calculate_transpositions_and_mcm(self):
+        self.matrices = [None for _ in range(self.n - 1)]
+        for i in range(2, self.n + 1):
+            self._calc_matrix(i)
+        if self.mode == "YOR":
+            self.mcm = None
+        else:
+            denominators = [mat[1] for mat in self.matrices]
+            coeficientes = [elem for matriz in denominators for fila in matriz for elem in fila]
+            #Calculo el mcm de todos los denominadores
+            self.mcm = reduce(self._mcm, coeficientes)
+            #Ahora la lista denominators tiene los numeros por los que hay que multiplicar los numeradores
+            denominators = [np.array(self.mcm / mat, dtype=np.int64) for mat in denominators]
+            numerators = [self.matrices[i][0] * denominators[i] for i in range(len(self.matrices))]
+            #Conservamos los numeradores y el mcm
+            self.matrices = numerators
 
-        # return np.array(decompress(currMatrix).tolist())
+
+rep = Irrep(Snob2.IntegerPartition([4,2]), "YKR")
+pi1 = Snob2.SnElement([2,4,1,5,3,6])
+pi2 = Snob2.SnElement([3,4,5,1,2,6])
+matrix1 = rep.evaluate(pi1)
+matrix2 = rep.evaluate(pi2)
+matrix = matrix1 @ matrix2
+m = rep.evaluate(pi1*pi2)
+print(np.allclose(matrix, m, atol=1e-6))

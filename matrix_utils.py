@@ -4,7 +4,11 @@ import sys
 import numpy as np
 
 
-def decompress(matrix):
+def apply_correction_transformation(matriz):
+        n = len(matriz)
+        return [[matriz[n - 1 - j][n - 1 - i] for j in range(n)] for i in range(n)]
+
+def decompress_YOR(matrix):
     """
     Convierte una matriz de fracciones por bloques en una matriz de números reales.
 
@@ -23,28 +27,57 @@ def decompress(matrix):
             # Obtenemos las dimensiones y el coeficiente
             block_rows, block_cols, coef = block
 
-            # Convertimos el coeficiente a número flotante si es una fracción
-            # if isinstance(coef, Fraction):
-            #     coef = coef.numerator / coef.denominator
-
-            # Crear un bloque de ceros de tamaño block_rows x block_cols
             if block_rows == block_cols:
                 # Si el bloque es cuadrado, inicializamos como la matriz identidad
                 block_matrix = np.eye(block_rows) * coef
             else:
-                # Si no es cuadrado, creamos una matriz de ceros
                 block_matrix = np.zeros((block_rows, block_cols))
-
-            # Agregar el bloque a la fila
+            
             block_row.append(block_matrix)
-
-        # Usamos hstack para juntar los bloques en la fila
+        
         blocks.append(np.hstack(block_row))
-
-    # Usamos vstack para juntar las filas completas
     result_matrix = np.vstack(blocks)
     
-    return result_matrix
+    return np.array(apply_correction_transformation(result_matrix))
+
+def decompress(matrix):
+    """
+    Convierte una matriz de fracciones por bloques en una matriz de números reales.
+    La diferencia con el modo YOR es que aquí devolvemos tuplas con matrices(para numeradores y denominadores).
+
+    Args:
+        matrix (list): La matriz de fracciones por bloques a convertir.
+
+    Returns:
+        np.ndarray: La matriz convertida a números reales.
+    """
+    # Inicializamos una lista vacía para los bloques
+    nums_blocks = []
+    dens_blocks = []
+    
+    for row in matrix:
+        num_block_row = []
+        den_block_row = []
+        for block in row:
+            # Obtenemos las dimensiones y el coeficiente
+            block_rows, block_cols, coef = block
+
+            if block_rows == block_cols:
+                # Si el bloque es cuadrado, inicializamos como la matriz identidad
+                num_block_matrix = np.eye(block_rows) * coef.numerator
+                den_block_matrix = np.ones((block_rows, block_cols)) * coef.denominator
+            else:
+                num_block_matrix = np.zeros((block_rows, block_cols))
+                den_block_matrix = np.ones((block_rows, block_cols))
+            
+            num_block_row.append(num_block_matrix)
+            den_block_row.append(den_block_matrix)
+        
+        nums_blocks.append(np.hstack(num_block_row))
+        dens_blocks.append(np.hstack(den_block_row))
+    result_tuple = (np.vstack(nums_blocks).astype(np.int64), np.vstack(dens_blocks).astype(np.int64))
+    
+    return result_tuple
 
 def pretty_print(matrix):
     """
@@ -80,3 +113,4 @@ def print_matrix(matrix):
     """
     for sublista in matrix:
         print(f"[{' '.join(map(str, sublista))}]")
+
