@@ -311,9 +311,13 @@ class Irrep:
             np.ndarray: La matriz de la representación irreducible de la permutación.
         """
         transpositions = express_into_adyacent_transpositions(pi)
+        
+        if len(transpositions) == 0:
+            return np.eye(self.matrices[0].shape[0])
+        
         currMatrix = self.matrices[transpositions[0]-2]
         for transposition in transpositions[1:]:
-            if max(abs(np.max(currMatrix)), abs(np.min(currMatrix))) > 1e10:
+            if max(abs(np.max(currMatrix)), abs(np.min(currMatrix))) > 1e12:
                 currMatrix = np.array(currMatrix, dtype=np.float64)
             
             currMatrix = currMatrix @ self.matrices[transposition-2]
@@ -349,11 +353,11 @@ class Irrep:
             self.matrices = numerators
 
 
-rep = Irrep(Snob2.IntegerPartition([4,2]), "YKR")
-pi1 = Snob2.SnElement([2,4,1,5,3,6])
-pi2 = Snob2.SnElement([3,4,5,1,2,6])
-matrix1 = rep.evaluate(pi1)
-matrix2 = rep.evaluate(pi2)
-matrix = matrix1 @ matrix2
-m = rep.evaluate(pi1*pi2)
-print(np.allclose(matrix, m, atol=1e-6))
+# rep = Irrep(Snob2.IntegerPartition([4,2]), "YKR")
+# pi1 = Snob2.SnElement([2,4,1,5,3,6])
+# pi2 = Snob2.SnElement([3,4,5,1,2,6])
+# matrix1 = rep.evaluate(pi1)
+# matrix2 = rep.evaluate(pi2)
+# matrix = matrix1 @ matrix2
+# m = rep.evaluate(pi1*pi2)
+# print(np.allclose(matrix, m, atol=1e-6))
