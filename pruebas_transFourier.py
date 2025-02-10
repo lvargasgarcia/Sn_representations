@@ -11,8 +11,9 @@ from snob_base import SnFunction
 import itertools
 import random
 import time
+from fourierTransform import FourierTransform
 
-n = 8
+n = 4
 dict_gaussian = {tuple(pi): random.normalvariate(0, 1) for pi in itertools.permutations([i for i in range(1, n + 1)])}
 
 def gaussian(pi):
@@ -29,14 +30,28 @@ def gaussian(pi):
 
 # test_ft_creationtime()
 
-rho = Irrep(Snob2.IntegerPartition([4,2,2]), mode="YOR")
-t_0 = time.time()
-# k = 0
-A = np.eye(rho.matrices[0].shape[0])
+# rho = Irrep(Snob2.IntegerPartition([4,2,2]), mode="YOR")
+# t_0 = time.time()
+# # k = 0
+# A = np.eye(rho.matrices[0].shape[0])
+# for pi in itertools.permutations([i for i in range(1, n + 1)]):
+#     A += gaussian(pi)*rho.evaluate(Snob2.SnElement(pi))
+#     print(pi)
+#     # k = k + 1
+#     # if k > 10000:
+#     #     break
+# print("Tiempo:", time.time() - t_0, "s")
+
+print("Función original")
+
 for pi in itertools.permutations([i for i in range(1, n + 1)]):
-    A += gaussian(pi)*rho.evaluate(Snob2.SnElement(pi))
-    print(pi)
-    # k = k + 1
-    # if k > 10000:
-    #     break
-print("Tiempo:", time.time() - t_0, "s")
+    print(pi,":", gaussian(pi))
+
+ft = FourierTransform(n,gaussian,mode="YOR")
+
+for pi in itertools.permutations([i for i in range(1, n + 1)]):
+    print(pi,":", gaussian(pi))
+    print("---------------------------------------------")
+    print(pi,":", ft.inverseFourierTransform(pi))
+    print("----------------------------------------------")
+    print("----------------------------------------------")

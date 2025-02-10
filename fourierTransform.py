@@ -6,6 +6,7 @@ from irrep import Irrep
 from itertools import permutations
 from concurrent.futures import ProcessPoolExecutor
 import time
+import math
 
 def generate_partitions(n):
     if n == 1:
@@ -31,28 +32,27 @@ class FourierTransform:
     
     def __init__(self, n , f, mode="YKR"):
         self.n = n
+        self.nfact = math.factorial(n)
         self.f = f
         self.mode = mode
-        #self.irreps = {tuple(partition): Irrep(Snob2.IntegerPartition(partition), mode=self.mode) for partition in generate_partitions(self.n)}
-        self.irreps = {}
-
-        # Usamos ProcessPoolExecutor para paralelizar la construcción de las matrices
+        partitions = generate_partitions(self.n)
+        
         with ProcessPoolExecutor(max_workers=4) as executor:
-            # Mapear cada partición a la función _buildFT
-            self.images = dict(executor.map(self._buildFT, generate_partitions(self.n)))
+            self.images = dict(executor.map(self._buildFT, partitions))
+        
+        self.irreps = {tuple(partition): Irrep(Snob2.IntegerPartition(partition), mode=self.mode) for partition in partitions}
 
     def _buildFT(self, partition):
         t_0 = time.time()
         irrep = Irrep(Snob2.IntegerPartition(partition), mode=self.mode)
-        self.irreps[tuple(partition)] = irrep
         print("Irrep para particion", partition, "construido en", time.time() - t_0, "s")
         matrix = np.eye(irrep.matrices[0].shape[0])
-        k = 1
+        # k = 1
         for pi in permutations([i for i in range(1, self.n + 1)]):
             matrix += self.f(pi)*irrep.evaluate(Snob2.SnElement(pi))
-            k += 1
-            if k > 100:
-                break
+            # k += 1
+            # if k > 100:
+            #     break
 
         print("Construida particion: ", partition, "en", time.time() - t_0, "s")
         
@@ -70,4 +70,9 @@ class FourierTransform:
         return resp
 
     def inverseFourierTransform(self, pi):
-        return None
+        f = 0
+        for partition in self.irreps.keys():
+            irrep = self.irreps[partition]
+            d_lambda = irrep.matrices[0].shape[0]
+            f += d_lambda * (np.trace(self.images[partition] @ irrep.evaluate(Snob2.SnElement(pi).inv())))
+        return f/self.nfact
