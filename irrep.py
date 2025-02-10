@@ -40,7 +40,9 @@ class Irrep:
         self.partition = partition
         self.n = partition.getn()
         self.mode = mode
-        self._calculate_transpositions_and_mcm()
+        self.matrices = [None for _ in range(self.n - 1)]
+        for i in range(2, self.n + 1):
+            self._calc_matrix(i)
     
     def _search_young_tableau(self, tableau):
         shape = tableau.shape()
@@ -296,9 +298,9 @@ class Irrep:
     
     def _calc_matrix(self, transposition):
         if self.mode == "YOR":
-               self.matrices[transposition-2] = decompress_YOR(self._build_irrep_of_transposition(self.partition, transposition, self.mode))
+            self.matrices[transposition-2] = decompress_YOR(self._build_irrep_of_transposition(self.partition, transposition, self.mode))
         else:
-               self.matrices[transposition-2] = decompress(self._build_irrep_of_transposition(self.partition, transposition, self.mode))
+            self.matrices[transposition-2] = decompress(self._build_irrep_of_transposition(self.partition, transposition, self.mode))
 
     def evaluate(self, pi):
         """
@@ -313,44 +315,33 @@ class Irrep:
         transpositions = express_into_adyacent_transpositions(pi)
         
         if len(transpositions) == 0:
-            return np.eye(self.matrices[0].shape[0])
+            return np.eye(self.matrices[0].shape[0], dtype = object)
         
         currMatrix = self.matrices[transpositions[0]-2]
         for transposition in transpositions[1:]:
-            if max(abs(np.max(currMatrix)), abs(np.min(currMatrix))) > 1e12:
-                currMatrix = np.array(currMatrix, dtype=np.float64)
-            
             currMatrix = currMatrix @ self.matrices[transposition-2]
-
-        if self.mode == "YOR":
-            return currMatrix
-        else:
-            # Si el modo es YKR o YSR hay que recordar que hemos sacado factor común el mcm de los denominadores
-            # Se hace con un bucle para evitar overflow en mcm^k
-            for _ in range(len(transpositions)):
-                currMatrix = np.array(currMatrix/self.mcm)
 
         return currMatrix
 
-    def _mcm(self,a , b):
-        return abs(a*b) // math.gcd(a,b)
+    # def _mcm(self,a , b):
+    #     return abs(a*b) // math.gcd(a,b)
 
-    def _calculate_transpositions_and_mcm(self):
-        self.matrices = [None for _ in range(self.n - 1)]
-        for i in range(2, self.n + 1):
-            self._calc_matrix(i)
-        if self.mode == "YOR":
-            self.mcm = None
-        else:
-            denominators = [mat[1] for mat in self.matrices]
-            coeficientes = [elem for matriz in denominators for fila in matriz for elem in fila]
-            #Calculo el mcm de todos los denominadores
-            self.mcm = reduce(self._mcm, coeficientes)
-            #Ahora la lista denominators tiene los numeros por los que hay que multiplicar los numeradores
-            denominators = [np.array(self.mcm / mat, dtype=np.int64) for mat in denominators]
-            numerators = [self.matrices[i][0] * denominators[i] for i in range(len(self.matrices))]
-            #Conservamos los numeradores y el mcm
-            self.matrices = numerators
+    # def _calculate_transpositions_and_mcm(self):
+    #     self.matrices = [None for _ in range(self.n - 1)]
+    #     for i in range(2, self.n + 1):
+    #         self._calc_matrix(i)
+    #     if self.mode == "YOR":
+    #         self.mcm = None
+    #     else:
+    #         denominators = [mat[1] for mat in self.matrices]
+    #         coeficientes = [elem for matriz in denominators for fila in matriz for elem in fila]
+    #         #Calculo el mcm de todos los denominadores
+    #         self.mcm = reduce(self._mcm, coeficientes)
+    #         #Ahora la lista denominators tiene los numeros por los que hay que multiplicar los numeradores
+    #         denominators = [np.array(np.array(self.mcm / mat, dtype=int), dtype=object) for mat in denominators]
+    #         numerators = [self.matrices[i][0] * denominators[i] for i in range(len(self.matrices))]
+    #         #Conservamos los numeradores y el mcm
+    #         self.matrices = numerators
 
 
 # rep = Irrep(Snob2.IntegerPartition([4,2]), "YKR")
@@ -361,3 +352,6 @@ class Irrep:
 # matrix = matrix1 @ matrix2
 # m = rep.evaluate(pi1*pi2)
 # print(np.allclose(matrix, m, atol=1e-6))
+
+# rho = Irrep(Snob2.IntegerPartition([3,1]), mode="YKR")
+# print_matrix(rho.evaluate(Snob2.SnElement([4,1,3,2])))

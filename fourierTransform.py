@@ -7,6 +7,7 @@ from itertools import permutations
 from concurrent.futures import ProcessPoolExecutor
 import time
 import math
+from fractions import Fraction
 
 def generate_partitions(n):
     if n == 1:
@@ -36,7 +37,7 @@ class FourierTransform:
         self.f = f
         self.mode = mode
         partitions = generate_partitions(self.n)
-        
+
         with ProcessPoolExecutor(max_workers=4) as executor:
             self.images = dict(executor.map(self._buildFT, partitions))
         
@@ -46,10 +47,10 @@ class FourierTransform:
         t_0 = time.time()
         irrep = Irrep(Snob2.IntegerPartition(partition), mode=self.mode)
         print("Irrep para particion", partition, "construido en", time.time() - t_0, "s")
-        matrix = np.eye(irrep.matrices[0].shape[0])
+        matrix = np.eye(irrep.matrices[0].shape[0], dtype=object) if self.mode != "YOR" else np.eye(irrep.matrices[0].shape[0])
         # k = 1
         for pi in permutations([i for i in range(1, self.n + 1)]):
-            matrix += self.f(pi)*irrep.evaluate(Snob2.SnElement(pi))
+            matrix += (self.f(pi) if self.mode == "YOR" else Fraction(self.f(pi)))*irrep.evaluate(Snob2.SnElement(pi))
             # k += 1
             # if k > 100:
             #     break
@@ -75,4 +76,4 @@ class FourierTransform:
             irrep = self.irreps[partition]
             d_lambda = irrep.matrices[0].shape[0]
             f += d_lambda * (np.trace(self.images[partition] @ irrep.evaluate(Snob2.SnElement(pi).inv())))
-        return f/self.nfact
+        return f/self.nfact - (1 if pi == tuple([i for i in range(1, self.n + 1)]) else 0)

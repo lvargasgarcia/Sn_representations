@@ -15,7 +15,7 @@ def log_test_result(test_name, duration):
     with open("resultados.txt", "a") as file:
         file.write(f"{test_name}:{datetime.datetime.now()} passed in {duration:.2f} seconds\n")
 
-dict_gaussian = {tuple(pi): random.normalvariate(0, 1) for pi in itertools.permutations([i for i in range(1, 9 + 1)])}
+dict_gaussian = {tuple(pi): random.normalvariate(0, 1) for pi in itertools.permutations([i for i in range(1, 8 + 1)])}
 
 
 
@@ -212,22 +212,21 @@ class TestIrrepRepresentation(unittest.TestCase):
 
         partition = Snob2.IntegerPartition([5,1,1,1,1,1])
         mi_rho = Irrep(partition, mode="YKR")
-        print(mi_rho.mcm)
         G = Snob2.Sn(10)
         for i in range(len(G)):
                 if i > 1e2:
                     break
                 if i != 0:
                     pi = G[i]
-                    matrix = mi_rho.evaluate(pi)
+                    matrix = np.array(mi_rho.evaluate(pi), dtype=np.float64)
                     self.assertTrue(np.linalg.det(matrix) != 0, "La matriz de la permutación " +  str(pi) + " no es invertible")
                     print("Es invertible")
 
     def test_ft_creationtime(self):
 
-        n = 9
+        n = 8
         t_0 = time.time()
-        ft = FourierTransform(n, gaussian, mode="YOR")
+        ft = FourierTransform(n, gaussian, mode="YKR")
         t_f = time.time()
         print("Tiempo:", t_f - t_0, "s")
         # print(ft)

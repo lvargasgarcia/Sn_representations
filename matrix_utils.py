@@ -43,7 +43,6 @@ def decompress_YOR(matrix):
 def decompress(matrix):
     """
     Convierte una matriz de fracciones por bloques en una matriz de números reales.
-    La diferencia con el modo YOR es que aquí devolvemos tuplas con matrices(para numeradores y denominadores).
 
     Args:
         matrix (list): La matriz de fracciones por bloques a convertir.
@@ -52,32 +51,65 @@ def decompress(matrix):
         np.ndarray: La matriz convertida a números reales.
     """
     # Inicializamos una lista vacía para los bloques
-    nums_blocks = []
-    dens_blocks = []
+    blocks = []
     
     for row in matrix:
-        num_block_row = []
-        den_block_row = []
+        block_row = []
         for block in row:
             # Obtenemos las dimensiones y el coeficiente
             block_rows, block_cols, coef = block
 
             if block_rows == block_cols:
                 # Si el bloque es cuadrado, inicializamos como la matriz identidad
-                num_block_matrix = np.eye(block_rows) * coef.numerator
-                den_block_matrix = np.ones((block_rows, block_cols)) * coef.denominator
+                block_matrix = np.eye(block_rows, dtype=object) * coef
             else:
-                num_block_matrix = np.zeros((block_rows, block_cols))
-                den_block_matrix = np.ones((block_rows, block_cols))
+                block_matrix = np.zeros((block_rows, block_cols), dtype=object)
             
-            num_block_row.append(num_block_matrix)
-            den_block_row.append(den_block_matrix)
+            block_row.append(block_matrix)
         
-        nums_blocks.append(np.hstack(num_block_row))
-        dens_blocks.append(np.hstack(den_block_row))
-    result_tuple = (np.vstack(nums_blocks).astype(np.int64), np.vstack(dens_blocks).astype(np.int64))
+        blocks.append(np.hstack(block_row))
+    result_matrix = np.vstack(blocks)
     
-    return result_tuple
+    return result_matrix
+
+# def decompress(matrix):
+#     """
+#     Convierte una matriz de fracciones por bloques en una matriz de números reales.
+#     La diferencia con el modo YOR es que aquí devolvemos tuplas con matrices(para numeradores y denominadores).
+
+#     Args:
+#         matrix (list): La matriz de fracciones por bloques a convertir.
+
+#     Returns:
+#         np.ndarray: La matriz convertida a números reales.
+#     """
+#     # Inicializamos una lista vacía para los bloques
+#     nums_blocks = []
+#     dens_blocks = []
+    
+#     for row in matrix:
+#         num_block_row = []
+#         den_block_row = []
+#         for block in row:
+#             # Obtenemos las dimensiones y el coeficiente
+#             block_rows, block_cols, coef = block
+
+#             if block_rows == block_cols:
+#                 # Si el bloque es cuadrado, inicializamos como la matriz identidad
+#                 num_block_matrix = np.eye(block_rows) * coef.numerator
+#                 den_block_matrix = np.ones((block_rows, block_cols)) * coef.denominator
+#             else:
+#                 num_block_matrix = np.zeros((block_rows, block_cols))
+#                 den_block_matrix = np.ones((block_rows, block_cols))
+            
+#             num_block_row.append(num_block_matrix)
+#             den_block_row.append(den_block_matrix)
+        
+#         nums_blocks.append(np.hstack(num_block_row))
+#         dens_blocks.append(np.hstack(den_block_row))
+#     result_tuple = (np.vstack(nums_blocks).astype(int), np.vstack(dens_blocks).astype(int))
+    
+#     return result_tuple
 
 def pretty_print(matrix):
     """

@@ -13,7 +13,7 @@ import random
 import time
 from fourierTransform import FourierTransform
 
-n = 4
+n = 6
 dict_gaussian = {tuple(pi): random.normalvariate(0, 1) for pi in itertools.permutations([i for i in range(1, n + 1)])}
 
 def gaussian(pi):
@@ -47,11 +47,19 @@ print("Función original")
 for pi in itertools.permutations([i for i in range(1, n + 1)]):
     print(pi,":", gaussian(pi))
 
-ft = FourierTransform(n,gaussian,mode="YOR")
+ft = FourierTransform(n,gaussian,mode="YSR")
 
+errores = []
 for pi in itertools.permutations([i for i in range(1, n + 1)]):
-    print(pi,":", gaussian(pi))
+    gauss = gaussian(pi)
+    inv_ft = ft.inverseFourierTransform(pi)
+    inv_ft = inv_ft.numerator / inv_ft.denominator
+    print(pi,":", gauss)
     print("---------------------------------------------")
-    print(pi,":", ft.inverseFourierTransform(pi))
+    print(pi,":", inv_ft)
     print("----------------------------------------------")
     print("----------------------------------------------")
+    errores.append(abs(gauss - inv_ft))
+    break
+
+print("Error máximo:", max(errores))
