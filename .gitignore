@@ -120,4 +120,7 @@ dmypy.json
 *.log
 /.vscode
 
+docIrrep.html
+
 # End of file
+cnine.log

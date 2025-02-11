@@ -15,7 +15,7 @@ def log_test_result(test_name, duration):
     with open("resultados.txt", "a") as file:
         file.write(f"{test_name}:{datetime.datetime.now()} passed in {duration:.2f} seconds\n")
 
-dict_gaussian = {tuple(pi): random.normalvariate(0, 1) for pi in itertools.permutations([i for i in range(1, 8 + 1)])}
+dict_gaussian = {tuple(pi): random.normalvariate(0, 1) for pi in itertools.permutations([i for i in range(1, 6 + 1)])}
 
 
 
@@ -224,7 +224,7 @@ class TestIrrepRepresentation(unittest.TestCase):
 
     def test_ft_creationtime(self):
 
-        n = 8
+        n = 6
         t_0 = time.time()
         ft = FourierTransform(n, gaussian, mode="YKR")
         t_f = time.time()

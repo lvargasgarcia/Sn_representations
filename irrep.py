@@ -315,7 +315,7 @@ class Irrep:
         transpositions = express_into_adyacent_transpositions(pi)
         
         if len(transpositions) == 0:
-            return np.eye(self.matrices[0].shape[0], dtype = object)
+            return np.eye(self.matrices[0].shape[0], dtype = object) if self.mode != "YOR" else np.eye(self.matrices[0].shape[0])
         
         currMatrix = self.matrices[transpositions[0]-2]
         for transposition in transpositions[1:]:
