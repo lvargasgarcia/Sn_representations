@@ -35,6 +35,7 @@ def generate_williams_list(f, n):
     
     f_nums = []
     f_dens = []
+    sequence = ""
 
     tau = [2,1] + [i for i in range(3,n+1)] # transposición (1,2)
     sigma = [(i+1) for i in range(1,n)] + [1] # Ciclo completo
@@ -55,12 +56,15 @@ def generate_williams_list(f, n):
         if(p != qsigmatau):
             if(williamsCondition(p,n) and p != qsigma):
                 p = compose(p, tau)
+                sequence += "t"
             else:
                 p = compose(p, invSigma)
+                sequence += "i"
         else:
             p = compose(p, invSigma)
+            sequence += "i"
         
         f_nums.append(representar_decimal(f(tuple(p))).numerator)
         f_dens.append(representar_decimal(f(tuple(p))).denominator)
 
-    return (np.array(f_nums), np.array(f_dens))
+    return (np.array(f_nums), np.array(f_dens), sequence)

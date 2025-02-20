@@ -9,7 +9,7 @@ class MPQ(ctypes.Structure):
     _fields_ = [("num", ctypes.c_void_p),  # Pointer to numerator (mpz_t)
                 ("den", ctypes.c_void_p)]  # Pointer to denominator (mpz_t)]
 
-def build_coefficient(n, dim, tau_matrix, qsigmatau_matrix, invSigma_matrix, f_nums, f_dens):
+def build_coefficient(n, dim, tau_matrix, qsigmatau_matrix, invSigma_matrix, f_nums, f_dens, williams_sequence, doInv):
     # Cargar la biblioteca compilada (.so)
     lib = ctypes.CDLL("/home/lalo/Sn_representations/libwilliams.so")
 
@@ -20,6 +20,7 @@ def build_coefficient(n, dim, tau_matrix, qsigmatau_matrix, invSigma_matrix, f_n
         ctypes.POINTER(ctypes.c_long), ctypes.POINTER(ctypes.c_long),  # qsigmatau_nums, qsigmatau_dens
         ctypes.POINTER(ctypes.c_long), ctypes.POINTER(ctypes.c_long),  # invSigma_nums, invSigma_dens
         ctypes.POINTER(ctypes.c_long), ctypes.POINTER(ctypes.c_long),
+        ctypes.c_char_p, ctypes.c_int  # williams_sequence
         # ctypes.POINTER(ctypes.c_long), ctypes.POINTER(ctypes.c_long)  # f_nums, f_dens
     ]
     lib.williams_wrapper.restype = ctypes.c_char_p 
@@ -44,16 +45,35 @@ def build_coefficient(n, dim, tau_matrix, qsigmatau_matrix, invSigma_matrix, f_n
         invSigma_dens.ctypes.data_as(ctypes.POINTER(ctypes.c_long)),
         f_nums.ctypes.data_as(ctypes.POINTER(ctypes.c_long)),
         f_dens.ctypes.data_as(ctypes.POINTER(ctypes.c_long)),
+        williams_sequence.encode('utf-8'),
+        doInv
     )
 
-    resp = resp.decode('utf-8').split(" ")
-    aux = np.empty((dim, dim), dtype=object)
-    for i in range(dim):
-        for j in range(dim):
-            aux[i][j] = mpq(resp[i*dim + j])
-
+    if doInv == 0:
     
-    return aux
+        resp = resp.decode('utf-8').split(" ")
+        aux = np.empty((dim, dim), dtype=object)
+        for i in range(dim):
+            for j in range(dim):
+                aux[i][j] = mpq(resp[i*dim + j])
+        
+        return aux
+    
+    else:
+    
+        resp = resp.decode('utf-8').split("$")
+        resp1 = resp[0].split(" ")
+        resp2 = resp[1].split(" ")
+        aux1 = np.empty((dim, dim), dtype=object)
+        aux2 = np.empty((nfact), dtype=object)
+        for i in range(dim):
+            for j in range(dim):
+                aux1[i][j] = mpq(resp1[i*dim + j])
+        for i in range(nfact):
+            aux2[i] = mpq(resp2[i])
+        
+        return aux1, aux2
+
 
 
 

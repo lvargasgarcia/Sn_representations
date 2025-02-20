@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <omp.h>
 
 // Función para inicializar una matriz de mpq_t
 mpq_t **crear_matriz(int dim) {
@@ -31,21 +32,57 @@ void copiar_matriz(mpq_t **A, mpq_t **B, int dim){
     }
 }
 
+// void multiplicar_matrices(mpq_t **A, mpq_t **B, mpq_t **C, int dim){
+//     for(int i = 0; i < dim; i++){
+//         for(int j = 0; j < dim; j++){
+//             mpq_set_ui(C[i][j], 0, 1);
+//             for(int k = 0; k < dim; k++){
+//                 mpq_t temp;
+//                 mpq_init(temp);
+//                 mpq_mul(temp, A[i][k], B[k][j]);
+//                 mpq_add(C[i][j], C[i][j], temp);
+//                 //mpq_canonicalize(C[i][j]);
+//                 mpq_clear(temp);
+//             }
+//         }
+//     }
+// }
+
 void multiplicar_matrices(mpq_t **A, mpq_t **B, mpq_t **C, int dim){
-    for(int i = 0; i < dim; i++){
-        for(int j = 0; j < dim; j++){
-            mpq_set_ui(C[i][j], 0, 1);
-            for(int k = 0; k < dim; k++){
-                mpq_t temp;
-                mpq_init(temp);
-                mpq_mul(temp, A[i][k], B[k][j]);
-                mpq_add(C[i][j], C[i][j], temp);
-                //mpq_canonicalize(C[i][j]);
-                mpq_clear(temp);
+    // Verificamos si la dimensión es mayor que 25 para paralelizar
+    if (dim > 50) {
+        #pragma omp parallel for collapse(2) num_threads(4)  // Paralelizamos los bucles i y j
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                mpq_set_ui(C[i][j], 0, 1);
+                for (int k = 0; k < dim; k++) {
+                    mpq_t temp;
+                    mpq_init(temp);
+                    mpq_mul(temp, A[i][k], B[k][j]);
+                    mpq_add(C[i][j], C[i][j], temp);
+                    //mpq_canonicalize(C[i][j]);
+                    mpq_clear(temp);
+                }
+            }
+        }
+    } else {
+        // Si la dimensión es menor o igual a 25, hacemos la multiplicación de manera secuencial
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                mpq_set_ui(C[i][j], 0, 1);
+                for (int k = 0; k < dim; k++) {
+                    mpq_t temp;
+                    mpq_init(temp);
+                    mpq_mul(temp, A[i][k], B[k][j]);
+                    mpq_add(C[i][j], C[i][j], temp);
+                    //mpq_canonicalize(C[i][j]);
+                    mpq_clear(temp);
+                }
             }
         }
     }
 }
+
 
 void multiplicar_matriz_escalar(mpq_t **A, mpq_t escalar, mpq_t **C, int dim){
     for(int i = 0; i < dim; i++){
@@ -134,109 +171,30 @@ int distintos(int *p1, int *p2, int n) {
     return 0;
 }
 
-void williams(int n, int dim, mpq_t **tau_matrix, mpq_t **qsigmatau_matrix, mpq_t **invSigma_matrix, mpq_t *f, mpq_t **fourier_matrix) {
+void williams_ft(int n, int dim, mpq_t **tau_matrix, mpq_t **qsigmatau_matrix, mpq_t **invSigma_matrix, mpq_t *f, 
     
-    // printf("tau_matrix\n");
-    // imprimir_matriz(tau_matrix, dim);
-
-    // printf("qsigmatau_matrix\n");
-    // imprimir_matriz(qsigmatau_matrix, dim);
-
-    // printf("invSigma_matrix\n");
-    // imprimir_matriz(invSigma_matrix, dim);
+    mpq_t **fourier_matrix, char *williams_sequence, int nfact) {
     
-    int *tau = malloc(n * sizeof(int));
-    int *sigma = malloc(n * sizeof(int));
-    int *q = malloc(n * sizeof(int));
-    int *qtau = malloc(n * sizeof(int));
-    int *qsigma = malloc(n * sizeof(int));
-    int *qsigmatau = malloc(n * sizeof(int));
-    int *invSigma = malloc(n * sizeof(int));
-    int *p = malloc(n * sizeof(int));
-    int *temp = malloc(n * sizeof(int));
-
     mpq_t **aux_1 = crear_matriz(dim);
     mpq_t **aux_2 = crear_matriz(dim);
-
-    tau[0] = 2;
-    tau[1] = 1;
-    for (int i = 2; i < n; i++) {
-        tau[i] = i + 1;
-    }
-
-    for (int i = 0; i < n - 1; i++) {
-        sigma[i] = i + 2;
-    }
-    sigma[n - 1] = 1;
-
-    for (int i = 0; i < n; i++) {
-        q[i] = n - i;
-    }
-
-    compose(qtau, q, tau, n);
-    compose(qsigma, q, sigma, n);
-    compose(qsigmatau, qsigma, tau, n);
-    inverse(invSigma, sigma, n);
-    compose(p, qsigma, tau, n);
-
-    //print_permutation(p, n);
-
-    int counter = 1;
 
     mpq_t **p_matrix = crear_matriz(dim);
 
     copiar_matriz(qsigmatau_matrix, p_matrix, dim);
 
-    multiplicar_matriz_escalar(p_matrix, f[counter-1], fourier_matrix, dim);
+    multiplicar_matriz_escalar(p_matrix, f[0], fourier_matrix, dim);
 
-    while (1) {
-        
-        if (distintos(p, qtau, n) == 0) {
-            break;
-        }
-        
-        if (distintos(p, qsigmatau, n) == 1) {
-            if (williamsCondition(p, n) && distintos(p, qsigma, n)) {
-                
-                compose(temp, p, tau, n);
-
-                for (int i = 0; i < n; i++) {
-                    p[i] = temp[i];
-                }
-
-                multiplicar_matrices(p_matrix, tau_matrix, aux_1, dim);
-                copiar_matriz(aux_1, p_matrix, dim);
-                
-
-
-            } else {
-                
-                compose(temp, p, invSigma, n);
-                
-                for (int i = 0; i < n; i++) {
-                    p[i] = temp[i];
-                }
-
-                multiplicar_matrices(p_matrix, invSigma_matrix, aux_1, dim);
-                copiar_matriz(aux_1, p_matrix, dim);
-
-            }
-        } else {
-            
-            compose(temp, p, invSigma, n);
-            
-            for (int i = 0; i < n; i++) {
-                p[i] = temp[i];
-            }
-
+    for(int k = 1; k < nfact; k++){
+        // printf("%d\n", williams_sequence[k]);
+        if(williams_sequence[k-1] == 't'){
+            multiplicar_matrices(p_matrix, tau_matrix, aux_1, dim);
+            copiar_matriz(aux_1, p_matrix, dim);
+        }else{
             multiplicar_matrices(p_matrix, invSigma_matrix, aux_1, dim);
             copiar_matriz(aux_1, p_matrix, dim);
-
         }
 
-        //print_permutation(p, n);
-
-        multiplicar_matriz_escalar(aux_1, f[counter], aux_2, dim);
+        multiplicar_matriz_escalar(aux_1, f[k], aux_2, dim);
 
         //añadir aux_2 a fourier_matrix
         for(int i = 0; i < dim; i++){
@@ -245,32 +203,111 @@ void williams(int n, int dim, mpq_t **tau_matrix, mpq_t **qsigmatau_matrix, mpq_
                 //mpq_canonicalize(fourier_matrix[i][j]);
             }
         }
-
-        counter++;
-
-        // printf("p_matrix");
-        // imprimir_matriz_double(p_matrix, dim);
-        // printf("f*p_matrix");
-        // imprimir_matriz_double(aux_2, dim);
-        // printf("f(p) = %f\n", mpq_get_d(f[counter-1]));
-        // printf("Fourier");
-        //imprimir_matriz_double(fourier_matrix, dim);
-
     }
 
-    free(tau);
-    free(sigma);
-    free(q);
-    free(qtau);
-    free(qsigma);
-    free(qsigmatau);
-    free(invSigma);
-    free(p);
-    free(temp);
     liberar_matriz(aux_1, dim);
     liberar_matriz(aux_2, dim);
     liberar_matriz(p_matrix, dim);
-    printf("Numero de permutaciones: %d\n", counter);
+}
+
+
+// void traza(mpq_t **fourier_matrix, mpq_t **p_matrix, mpq_t *resp, int dim, mpq_t factor){
+
+//     mpq_t traza;
+//     mpq_init(traza);
+
+//     mpq_set_si(traza, 0, 1);
+
+//     for(int i = 0; i < dim; i++){
+//         for(int j = 0; j < dim; j++){
+//             mpq_t temp;
+//             mpq_init(temp);
+//             mpq_mul(temp, fourier_matrix[i][j], p_matrix[j][i]);
+//             mpq_add(traza, traza, temp);
+//             mpq_clear(temp);
+//         }
+//     }
+
+//     mpq_mul(*resp, traza, factor);
+//     mpq_clear(traza);
+// }
+
+mpq_t *williams_invft(int n, int dim, mpq_t **tau_matrix, mpq_t **qsigmatau_matrix, mpq_t **invSigma_matrix, 
+    
+    mpq_t **fourier_matrix, char *williams_sequence, int nfact) {
+    
+    mpq_t *invft_vector = crear_vector(nfact);
+    mpq_t **aux_1 = crear_matriz(dim);
+    mpq_t **aux_2 = crear_matriz(dim);
+
+    //d_lambda/n!
+    mpq_t factor;
+    mpq_init(factor);
+    mpq_set_si(factor, dim, nfact);
+    mpq_canonicalize(factor);
+
+    printf("Factor: ");
+    gmp_printf("%Qd\n", factor);
+
+    mpq_t **p_matrix = crear_matriz(dim);
+
+    copiar_matriz(qsigmatau_matrix, p_matrix, dim);
+
+    // // factor * traza(fourier_matrix * p_matrix)
+    mpq_t traza;
+    mpq_init(traza);
+    mpq_set_si(traza, 0, 1);
+
+    for(int i = 0; i < dim; i++){
+        for(int j = 0; j < dim; j++){
+            mpq_t temp;
+            mpq_init(temp);
+            mpq_mul(temp, fourier_matrix[i][j], p_matrix[j][i]);
+            mpq_add(traza, traza, temp);
+            mpq_clear(temp);
+        }
+    }
+
+    mpq_mul(invft_vector[0], traza, factor);
+    mpq_clear(traza);
+
+    for(int k = 1; k < nfact; k++){
+        // printf("%d\n", williams_sequence[k]);
+        if(williams_sequence[k-1] == 't'){
+            multiplicar_matrices(p_matrix, tau_matrix, aux_1, dim);
+            copiar_matriz(aux_1, p_matrix, dim);
+        }else{
+            multiplicar_matrices(p_matrix, invSigma_matrix, aux_1, dim);
+            copiar_matriz(aux_1, p_matrix, dim);
+        }
+
+        //factor * traza(fourier_matrix * p_matrix)
+        mpq_t tr;
+        mpq_init(tr);
+        mpq_set_si(tr, 0, 1);
+
+        for(int i = 0; i < dim; i++){
+            for(int j = 0; j < dim; j++){
+                mpq_t tempr;
+                mpq_init(tempr);
+                mpq_mul(tempr, fourier_matrix[i][j], p_matrix[j][i]);
+                mpq_add(tr, tr, tempr);
+                mpq_clear(tempr);
+            }
+        }
+
+        mpq_mul(invft_vector[k], tr, factor);
+        mpq_clear(tr);
+
+    }
+
+    mpq_clear(factor);
+    liberar_matriz(aux_1, dim);
+    liberar_matriz(aux_2, dim);
+    liberar_matriz(p_matrix, dim);
+
+    return invft_vector;
+
 }
 
 void inicializar_matriz(mpq_t **matriz, int dim, long **valores) {
@@ -388,10 +425,55 @@ char *matriz_a_vector_string(mpq_t **A, int dim) {
     return result;
 }
 
+char *vector_a_vector_string(mpq_t *vector, int length){
+    
+    char *result = NULL;  // Para almacenar la cadena final
+    size_t offset = 0;    // Longitud actual de la cadena (sin incluir el '\0')
+    
+    for (int j = 0; j < length; j++) {
+        char *number;
+        // Convertimos el número a cadena
+        gmp_asprintf(&number, "%Qd", vector[j]);
+        // printf("-------------\n");
+        // printf("%s\n", number);
+        // printf("-------------\n");
+
+        size_t num_length = strlen(number);
+        size_t extra = (offset == 0) ? num_length : (1 + num_length); // 1 para el espacio en iteraciones posteriores
+        size_t new_length = offset + extra + 1; // +1 para el carácter nulo
+
+        // Realocamos la memoria
+        char *temp = realloc(result, new_length);
+        if (!temp) {
+            perror("Error reallocating memory");
+            free(number);
+            free(result);  // Liberamos lo que se haya asignado previamente
+            return NULL;
+        }
+        result = temp;
+
+        // Concatenamos el número (precedido de un espacio si no es el primero)
+        if (offset == 0) {
+            sprintf(result, "%s", number);
+            offset = num_length;  // Actualizamos offset sin contar el '\0'
+        } else {
+            sprintf(result + offset, " %s", number);
+            offset += 1 + num_length;
+        }
+
+        // printf("result: %s\n", result);
+
+        free(number);
+    }
+
+    return result;
+
+}
+
 
 char *williams_wrapper(int n, int nfact, int dim, long *tau_nums, long *tau_dens, long *qsigmatau_nums, long *qsigmatau_dens, long *invSigma_nums, long *invSigma_dens,
     
-    long *f_nums, long *f_dens){
+    long *f_nums, long *f_dens, char *williams_sequence, int doInv){
 
     mpq_t **tau_matrix = zip_matrices(tau_nums, tau_dens, dim);
     mpq_t **qsigmatau_matrix = zip_matrices(qsigmatau_nums, qsigmatau_dens, dim);
@@ -400,10 +482,27 @@ char *williams_wrapper(int n, int nfact, int dim, long *tau_nums, long *tau_dens
 
     mpq_t **fourier_matrix = crear_matriz(dim);
 
-    williams(n, dim, tau_matrix, qsigmatau_matrix, invSigma_matrix, f, fourier_matrix);
-
+    williams_ft(n, dim, tau_matrix, qsigmatau_matrix, invSigma_matrix, f, fourier_matrix, williams_sequence, nfact);
     
     char *fourier_vector = matriz_a_vector_string(fourier_matrix, dim);
+
+    char *invft_vector;
+    char *result;
+    
+    if(doInv == 1){
+        
+        mpq_t *q_invft_vector = williams_invft(n, dim, tau_matrix, qsigmatau_matrix, invSigma_matrix, fourier_matrix, williams_sequence, nfact);
+        invft_vector = vector_a_vector_string(q_invft_vector, nfact);
+        liberar_vector(q_invft_vector, nfact);
+
+        //hacer la concatenación fourier_vector + $ + invft_vector
+        result = malloc(strlen(fourier_vector) + strlen(invft_vector) + 2);
+        strcpy(result, fourier_vector);
+        strcat(result, "$");
+        strcat(result, invft_vector);
+        free(invft_vector);
+        free(fourier_vector);
+    }
 
     // for(int i = 0; i < dim * dim; i++){
     //     mpz_t num;
@@ -426,11 +525,14 @@ char *williams_wrapper(int n, int nfact, int dim, long *tau_nums, long *tau_dens
     liberar_vector(f, nfact);
     liberar_matriz(fourier_matrix, dim);
 
-    return fourier_vector;
+    if(doInv == 1){
+        return result;
+        //return fourier_vector;
+    }else{
+        return fourier_vector;
+    }
 
 }
-
-
 
 // int main(){
     
@@ -512,9 +614,10 @@ char *williams_wrapper(int n, int nfact, int dim, long *tau_nums, long *tau_dens
 //     // liberar_matriz(invSigma_matrix, dim);
 //     // liberar_vector(f, nfact);
 
+//     char *seq = "iiititiiititiiitiiititi";
     
 //     char *fourier_vector = williams_wrapper(n, nfact, dim, tau_valores_num, tau_valores_den, qsigmatau_valores_num, qsigmatau_valores_den, 
-//         invSigma_valores_num, invSigma_valores_den, f_nums, f_dens);
+//         invSigma_valores_num, invSigma_valores_den, f_nums, f_dens, seq, 1);
 
 //     printf("%s\n", fourier_vector);
 
