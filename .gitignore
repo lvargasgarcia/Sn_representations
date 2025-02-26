@@ -119,6 +119,10 @@ dmypy.json
 
 *.log
 /.vscode
+/instances
+
+*.esm 
+/snob_env
 
 docIrrep.html
 

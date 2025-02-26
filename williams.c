@@ -48,40 +48,49 @@ void copiar_matriz(mpq_t **A, mpq_t **B, int dim){
 //     }
 // }
 
-void multiplicar_matrices(mpq_t **A, mpq_t **B, mpq_t **C, int dim){
-    // Verificamos si la dimensión es mayor que 25 para paralelizar
-    if (dim > 50) {
-        #pragma omp parallel for collapse(2) num_threads(4)  // Paralelizamos los bucles i y j
+#include <stdio.h>
+#include <gmp.h>
+#include <omp.h>
+
+void multiplicar_matrices(mpq_t **A, mpq_t **B, mpq_t **C, int dim) {
+    // Determinar si usar paralelización
+    if (dim > 25) {
+        #pragma omp parallel for num_threads(4) default(none) shared(A, B, C, dim)
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
-                mpq_set_ui(C[i][j], 0, 1);
+                mpq_set_ui(C[i][j], 0, 1); // Inicializa C[i][j] en 0
+
+                mpq_t temp;
+                mpq_init(temp); // Inicializar una sola vez
+
                 for (int k = 0; k < dim; k++) {
-                    mpq_t temp;
-                    mpq_init(temp);
                     mpq_mul(temp, A[i][k], B[k][j]);
                     mpq_add(C[i][j], C[i][j], temp);
-                    //mpq_canonicalize(C[i][j]);
-                    mpq_clear(temp);
                 }
+                
+                mpq_clear(temp); // Liberar memoria
             }
         }
     } else {
-        // Si la dimensión es menor o igual a 25, hacemos la multiplicación de manera secuencial
+        // Multiplicación secuencial
         for (int i = 0; i < dim; i++) {
             for (int j = 0; j < dim; j++) {
                 mpq_set_ui(C[i][j], 0, 1);
+
+                mpq_t temp;
+                mpq_init(temp);
+
                 for (int k = 0; k < dim; k++) {
-                    mpq_t temp;
-                    mpq_init(temp);
                     mpq_mul(temp, A[i][k], B[k][j]);
                     mpq_add(C[i][j], C[i][j], temp);
-                    //mpq_canonicalize(C[i][j]);
-                    mpq_clear(temp);
                 }
+                
+                mpq_clear(temp);
             }
         }
     }
 }
+
 
 
 void multiplicar_matriz_escalar(mpq_t **A, mpq_t escalar, mpq_t **C, int dim){
@@ -246,8 +255,8 @@ mpq_t *williams_invft(int n, int dim, mpq_t **tau_matrix, mpq_t **qsigmatau_matr
     mpq_set_si(factor, dim, nfact);
     mpq_canonicalize(factor);
 
-    printf("Factor: ");
-    gmp_printf("%Qd\n", factor);
+    // printf("Factor: ");
+    // gmp_printf("%Qd\n", factor);
 
     mpq_t **p_matrix = crear_matriz(dim);
 

@@ -1,4 +1,5 @@
 from queue import PriorityQueue
+import json
 import torch
 import snob as Snob2
 import sys
@@ -11,9 +12,30 @@ import math
 from fractions import Fraction
 from numba import jit, prange
 from multiprocessing import Pool, cpu_count
-from gmpy2 import mpq
+from gmpy2 import mpq, mpz
 from williams_interface import build_coefficient
 from permutations_iterator import *
+
+def print_mpq_matrix(matrix):
+    return [[str(elem.numerator) + "/" + str(elem.denominator) for elem in row] for row in matrix]
+
+def matmul(A, B):
+
+    # Paso 1: obtener el minimo comun multiplo de los denominadores
+    dens_A = [mpz(elem.denominator) for row in A for elem in row]
+    dens_B = [mpz(elem.denominator) for row in B for elem in row]
+
+    lcm = np.lcm.reduce(dens_A + dens_B)
+
+    normalized_A = np.array([[mpz(elem) * mpz(lcm // elem.denominator) for elem in row] for row in A], dtype=np.int64)
+    normalized_B = np.array([[mpz(elem) * mpz(lcm // elem.denominator) for elem in row] for row in B], dtype=np.int64)
+
+    AB = normalized_A @ normalized_B
+
+    lcm_sqr = mpz(lcm)*mpz(lcm)
+
+    return np.array([[mpq(str(elem) + "/" + str(lcm_sqr)) for elem in row] for row in AB], dtype=object)
+
 
 def generate_partitions(n):
     if n == 1:
@@ -36,24 +58,20 @@ def generate_partitions(n):
 
 class FourierTransform:
     
-    def __init__(self, n , f, mode="YKR", truncating_order=None):
+    def __init__(self, n , f, mode="YKR"):
 
-        self.truncating_order = truncating_order if truncating_order is not None else n
+        t_0 = time.time()
         self.n = n
         self.nfact = math.factorial(n)
-        self.f = f
+        #self.f = f
         self.mode = mode
         partitions = generate_partitions(self.n)
         self.images = {}
-        inverseFT = np.array([mpq(0) for _ in range(self.nfact)], dtype=object)
+        inverseFT = [np.array([mpq(0) for _ in range(self.nfact)], dtype=object) for _ in range(n)]
 
         irreps = {tuple(partition): Irrep(Snob2.IntegerPartition(partition), mode=self.mode) for partition in partitions}
         d_lambda = {tuple(partition): irreps[tuple(partition)].matrices[0].shape[0] for partition in partitions}
         (self.f_nums, self.f_dens, self.williams_sequence) = generate_williams_list(f, n)
-        print(self.williams_sequence)
-
-        for partition, d in d_lambda.items():
-            print(partition, ":", d)
 
         # Crear una PriorityQueue
         priority_queue = PriorityQueue()
@@ -79,8 +97,7 @@ class FourierTransform:
             
             while not priority_queue.empty():
                 _, partition = priority_queue.get()
-                ord = self.n - partition[0]
-                doInv = 1 if ord <= self.truncating_order else 0
+                doInv = 1 
                 irrep = irreps[tuple(partition)]
                 tau_matrix = np.array([[mpq(elem) for elem in row] for row in irrep.evaluate(Snob2.SnElement(tau))], dtype=object)
                 qsigmatau_matrix = np.array([[mpq(elem) for elem in row] for row in irrep.evaluate(Snob2.SnElement(qsigmatau))], dtype=object)
@@ -91,13 +108,12 @@ class FourierTransform:
             for future in futures:
                 partition, fourier_coef = future.result()
                 ord = self.n - partition[0]
-                doInv = 1 if ord <= self.truncating_order else 0
-                if doInv == 0:
-                    self.images[partition] = fourier_coef
-                else:
-                    fourier_coeff, inv_f = fourier_coef
-                    self.images[partition] = fourier_coeff
-                    inverseFT += inv_f
+                fourier_coeff, inv_f = fourier_coef
+                self.images[partition] = fourier_coeff
+                for i in range(n):
+                    if i >= ord:
+                        inverseFT[i] += inv_f
+
 
         # VERSIÓN SIN PARALELIZACIÓN (PARA DEBUGGING)
 
@@ -134,7 +150,9 @@ class FourierTransform:
 
         k = 0
 
-        self.inverseFT[tuple(inverse(p))] = inverseFT[k]
+        for j in range(n):
+            self.inverseFT[(tuple(inverse(p)),(j))] = inverseFT[j][k]
+
         k += 1
 
         while(p != qtau):
@@ -149,10 +167,18 @@ class FourierTransform:
             else:
                 p = compose(p, invSigma)
 
-            self.inverseFT[tuple(inverse(p))] = inverseFT[k]
+            for j in range(n):
+                self.inverseFT[(tuple(inverse(p)),(j))] = inverseFT[j][k]
+
             k += 1
 
+        print("FT construida en", time.time() - t_0, "s")
 
+
+    def __str__(self):
+        np.set_printoptions(threshold=np.inf)
+        return json.dumps({str(key): print_mpq_matrix(value) for key, value in self.images.items()})
+    
     def _buildFT_williams_YOR(self, tau_matrix, qsigmatau_matrix, invSigma_matrix):
 
         n = self.n
@@ -195,6 +221,22 @@ class FourierTransform:
 
         return build_coefficient(self.n, tau_matrix.shape[0], tau_matrix, qsigmatau_matrix, invSigma_matrix, self.f_nums, self.f_dens, self.williams_sequence, doInv)
 
+        # p_matrix = np.array([[elem for elem in row] for row in qsigmatau_matrix], dtype=object)
+        # i = 0
+        # fourier_matrix = mpq(str(self.f_nums[i]) + "/" + str(self.f_dens[i])) * p_matrix
+        # i += 1
+
+        # for step in self.williams_sequence:
+            
+        #     if step == 't':
+        #         p_matrix = matmul(p_matrix, tau_matrix)
+        #     else:
+        #         p_matrix = matmul(p_matrix, invSigma_matrix)
+        # fourier_matrix += mpq(str(self.f_nums[i]) + "/" + str(self.f_dens[i])) * p_matrix
+        # i += 1
+        
+        # return fourier_matrix
+        
         # while(p != qtau):
 
         #     if(p != qsigmatau):
@@ -242,20 +284,15 @@ class FourierTransform:
     def _evaluate(self, partition):
         return self.images[tuple(partition)]
     
-    def __str__(self):
-        resp = "---- fourier transform ----\n"
-        for key in self.images:
-            resp += str(key) + "\n"
-            resp += "-------------------\n"
-            resp += str(self.images[key]) + "\n"
-        return resp
+    def inverseFourierTransform(self, pi, order):
+        return self.inverseFT[(pi, (order))]
 
-    def inverseFourierTransform(self, pi):
-        f = 0
-        for partition in self.irreps.keys():
-            irrep = self.irreps[partition]
-            matIrrep = irrep.evaluate(Snob2.SnElement(pi).inv())
-            coefFourier = self.images[partition]
-            d_lambda = mpq(irrep.matrices[0].shape[0])
-            f += d_lambda * (np.trace(coefFourier @ matIrrep))
-        return f/self.nfact
+    # def inverseFourierTransform(self, pi):
+    #     f = 0
+    #     for partition in self.irreps.keys():
+    #         irrep = self.irreps[partition]
+    #         matIrrep = irrep.evaluate(Snob2.SnElement(pi).inv())
+    #         coefFourier = self.images[partition]
+    #         d_lambda = mpq(irrep.matrices[0].shape[0])
+    #         f += d_lambda * (np.trace(coefFourier @ matIrrep))
+    #     return f/self.nfact
