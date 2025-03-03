@@ -3,7 +3,7 @@ import snob as Snob2
 import sys
 import numpy as np
 import math
-from fractions import Fraction
+from gmpy2 import mpq
 from permutaciones import express_into_adyacent_transpositions
 from matrix_utils import decompress_YOR, decompress, print_matrix
 from functools import reduce
@@ -37,8 +37,8 @@ class Irrep:
         """
         if mode not in ["YKR", "YSR", "YOR"]:
             raise ValueError("Mode must be 'YKR', 'YSR', or 'YOR'")
-        self.partition = partition
-        self.n = partition.getn()
+        self.partition = Snob2.IntegerPartition(partition)
+        self.n = sum(partition)
         self.mode = mode
         self.matrices = [None for _ in range(self.n - 1)]
         for i in range(2, self.n + 1):
@@ -188,42 +188,42 @@ class Irrep:
                         
                         chi = abs(a-c) + abs(b-d)
                         chi_sqr = chi**2
-                        q_sqr_chi = Fraction((chi_sqr - 1), chi_sqr)
+                        q_sqr_chi = mpq((chi_sqr - 1), chi_sqr)
                         
                         if mode == "YKR":
                             if matrix[i][i][2] == None:
-                                matrix[i][i][2] = Fraction(1,chi)
+                                matrix[i][i][2] = mpq(1,chi)
                             if matrix[j][j][2] == None:
-                                matrix[j][j][2] = Fraction(-1,chi)
+                                matrix[j][j][2] = mpq(-1,chi)
                             if matrix[i][j][2] == None:
-                                matrix[i][j][2] = Fraction(1)
+                                matrix[i][j][2] = mpq(1)
                             if matrix[j][i][2] == None:
                                 matrix[j][i][2] = q_sqr_chi
                             
                         if mode == "YSR":
                                 if matrix[i][i][2] == None:
-                                    matrix[i][i][2] = Fraction(1,chi)
+                                    matrix[i][i][2] = mpq(1,chi)
                                 if matrix[j][j][2] == None:
-                                    matrix[j][j][2] = Fraction(-1,chi)
+                                    matrix[j][j][2] = mpq(-1,chi)
                                 if matrix[i][j][2] == None:
                                     matrix[i][j][2] = q_sqr_chi
                                 if matrix[j][i][2] == None:
-                                    matrix[j][i][2] = Fraction(1)
+                                    matrix[j][i][2] = mpq(1)
                         if mode == "YOR":
                                 
                                 sqrt = math.sqrt(q_sqr_chi.numerator/q_sqr_chi.denominator)
 
                                 if matrix[i][i][2] == None:
-                                    matrix[i][i][2] = Fraction(1,chi)
+                                    matrix[i][i][2] = mpq(1,chi)
                                 if matrix[j][j][2] == None:
-                                    matrix[j][j][2] = Fraction(-1,chi)
+                                    matrix[j][j][2] = mpq(-1,chi)
                                 if matrix[i][j][2] == None:
                                     matrix[i][j][2] = sqrt
                                 if matrix[j][i][2] == None:
                                     matrix[j][i][2] = sqrt
                     else:
-                        matrix[i][j][2] = Fraction(0)
-                        matrix[j][i][2] = Fraction(0)
+                        matrix[i][j][2] = mpq(0)
+                        matrix[j][i][2] = mpq(0)
                                             
 
         return matrix
@@ -320,6 +320,27 @@ class Irrep:
         currMatrix = self.matrices[transpositions[0]-2]
         for transposition in transpositions[1:]:
             currMatrix = currMatrix @ self.matrices[transposition-2]
+
+        return currMatrix
+    
+    def evaluate_floatingpoint(self, pi):
+        """
+        Construye la representación irreducible de una permutación.
+
+        Args:.
+            pi (list): La permutación expresada como una lista de transposiciones adyacentes.
+
+        Returns:
+            np.ndarray: La matriz de la representación irreducible de la permutación.
+        """
+        transpositions = express_into_adyacent_transpositions(pi)
+        
+        if len(transpositions) == 0:
+            return np.eye(self.matrices[0].shape[0])
+        
+        currMatrix = np.array(self.matrices[transpositions[0]-2], dtype=np.float64)
+        for transposition in transpositions[1:]:
+            currMatrix = currMatrix @ np.array(self.matrices[transposition-2], dtype=np.float64)
 
         return currMatrix
 

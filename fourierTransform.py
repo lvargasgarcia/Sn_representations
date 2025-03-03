@@ -1,7 +1,7 @@
 from queue import PriorityQueue
 import json
 import torch
-import snob as Snob2
+# import snob as Snob2
 import sys
 import numpy as np
 from irrep import Irrep
@@ -69,8 +69,12 @@ class FourierTransform:
         self.images = {}
         inverseFT = [np.array([mpq(0) for _ in range(self.nfact)], dtype=object) for _ in range(n)]
 
-        irreps = {tuple(partition): Irrep(Snob2.IntegerPartition(partition), mode=self.mode) for partition in partitions}
+        irreps = {tuple(partition): Irrep(partition, mode=self.mode) for partition in partitions}
         d_lambda = {tuple(partition): irreps[tuple(partition)].matrices[0].shape[0] for partition in partitions}
+
+        for partition in partitions:
+            print("d_lambda", partition, "->", d_lambda[tuple(partition)])
+
         (self.f_nums, self.f_dens, self.williams_sequence) = generate_williams_list(f, n)
 
         # Crear una PriorityQueue
@@ -89,9 +93,14 @@ class FourierTransform:
         qsigma = compose(q, sigma)
         qsigmatau = compose(qsigma, tau)
         invSigma = inverse(sigma)
+
+        cpu_cores = cpu_count()
+        print("CPU cores:", cpu_cores)
+
+        workers = cpu_cores 
         
         # # Usar ProcessPoolExecutor con la cola de prioridades
-        with ProcessPoolExecutor(max_workers=6) as executor:
+        with ProcessPoolExecutor(max_workers=1) as executor:
             
             futures = []
             
@@ -99,9 +108,15 @@ class FourierTransform:
                 _, partition = priority_queue.get()
                 doInv = 1 
                 irrep = irreps[tuple(partition)]
-                tau_matrix = np.array([[mpq(elem) for elem in row] for row in irrep.evaluate(Snob2.SnElement(tau))], dtype=object)
-                qsigmatau_matrix = np.array([[mpq(elem) for elem in row] for row in irrep.evaluate(Snob2.SnElement(qsigmatau))], dtype=object)
-                invSigma_matrix = np.array([[mpq(elem) for elem in row] for row in irrep.evaluate(Snob2.SnElement(invSigma))], dtype=object)
+                
+                # tau_matrix = irrep.evaluate_floatingpoint(tau)
+                # qsigmatau_matrix = irrep.evaluate_floatingpoint(qsigmatau)
+                # invSigma_matrix = irrep.evaluate_floatingpoint(invSigma)
+
+                tau_matrix = irrep.evaluate(tau)
+                qsigmatau_matrix = irrep.evaluate(qsigmatau)
+                invSigma_matrix = irrep.evaluate(invSigma)
+
                 future = executor.submit(self._buildFT, partition, tau_matrix, qsigmatau_matrix, invSigma_matrix, doInv)
                 futures.append(future)
             
@@ -118,11 +133,10 @@ class FourierTransform:
         # VERSIÓN SIN PARALELIZACIÓN (PARA DEBUGGING)
 
         # futures = []
-
+        
         # while not priority_queue.empty():
         #     _, partition = priority_queue.get()
-        #     ord = self.n - partition[0]
-        #     doInv = 1 if ord <= self.truncating_order else 0
+        #     doInv = 1 
         #     irrep = irreps[tuple(partition)]
         #     tau_matrix = np.array([[mpq(elem) for elem in row] for row in irrep.evaluate(Snob2.SnElement(tau))], dtype=object)
         #     qsigmatau_matrix = np.array([[mpq(elem) for elem in row] for row in irrep.evaluate(Snob2.SnElement(qsigmatau))], dtype=object)
@@ -133,14 +147,12 @@ class FourierTransform:
         # for future in futures:
         #     partition, fourier_coef = future
         #     ord = self.n - partition[0]
-        #     doInv = 1 if ord <= self.truncating_order else 0
-        #     if doInv == 0:
-        #         self.images[partition] = fourier_coef
-        #     else:
-        #         fourier_coeff, inv_f = fourier_coef
-        #         self.images[partition] = fourier_coeff
-        #         inverseFT += inv_f
-        
+        #     fourier_coeff, inv_f = fourier_coef
+        #     self.images[partition] = fourier_coeff
+        #     for i in range(n):
+        #         if i >= ord:
+        #             inverseFT[i] += inv_f
+    
         self.irreps = irreps
         self.d_lambda = d_lambda
 
@@ -221,21 +233,43 @@ class FourierTransform:
 
         return build_coefficient(self.n, tau_matrix.shape[0], tau_matrix, qsigmatau_matrix, invSigma_matrix, self.f_nums, self.f_dens, self.williams_sequence, doInv)
 
-        # p_matrix = np.array([[elem for elem in row] for row in qsigmatau_matrix], dtype=object)
-        # i = 0
-        # fourier_matrix = mpq(str(self.f_nums[i]) + "/" + str(self.f_dens[i])) * p_matrix
-        # i += 1
+        p_matrix = qsigmatau_matrix
+        tau_matrix_n = tau_matrix
+        invSigma_matrix_n = invSigma_matrix
+        i = 0
+        fourier_matrix = (self.f_nums[i]/self.f_dens[i]) * p_matrix
+        i += 1
 
-        # for step in self.williams_sequence:
-            
-        #     if step == 't':
-        #         p_matrix = matmul(p_matrix, tau_matrix)
-        #     else:
-        #         p_matrix = matmul(p_matrix, invSigma_matrix)
-        # fourier_matrix += mpq(str(self.f_nums[i]) + "/" + str(self.f_dens[i])) * p_matrix
-        # i += 1
+        for step in self.williams_sequence:
+            if step == 't':
+                p_matrix = p_matrix @ tau_matrix_n
+            else:
+                p_matrix = p_matrix @ invSigma_matrix_n
+            fourier_matrix += (self.f_nums[i]/self.f_dens[i]) * p_matrix
+            i += 1
+            if(tau_matrix.shape[0] > 100):
+                print(tau_matrix.shape[0], "->", i)
         
-        # return fourier_matrix
+        inverseFT = np.zeros((self.nfact), dtype=np.float64)
+
+        p_matrix = qsigmatau_matrix
+        tau_matrix_n = tau_matrix
+        invSigma_matrix_n = invSigma_matrix
+
+        inverseFT[0] = np.trace(fourier_matrix @ p_matrix)
+        i = 1
+
+        for step in self.williams_sequence:
+            if step == 't':
+                p_matrix = p_matrix @ tau_matrix_n
+            else:
+                p_matrix = p_matrix @ invSigma_matrix_n
+            inverseFT[i] = np.trace(fourier_matrix @ p_matrix)
+            i += 1
+            if(tau_matrix.shape[0] > 100):
+                print(tau_matrix.shape[0], "->", i)
+        
+        return fourier_matrix, (tau_matrix.shape[0]/self.nfact)*inverseFT
         
         # while(p != qtau):
 

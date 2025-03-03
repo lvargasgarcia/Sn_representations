@@ -11,7 +11,7 @@ class MPQ(ctypes.Structure):
 
 def build_coefficient(n, dim, tau_matrix, qsigmatau_matrix, invSigma_matrix, f_nums, f_dens, williams_sequence, doInv):
     # Cargar la biblioteca compilada (.so)
-    lib = ctypes.CDLL("/home/lalo/Sn_representations/libwilliams.so")
+    lib = ctypes.CDLL("./libwilliams.so")
 
     # Definir la función en ctypes
     lib.williams_wrapper.argtypes = [

@@ -95,7 +95,7 @@ def express_transposition_into_adyacent_transpositions(transposition):
     return list_left + list_right
 
 def express_into_adyacent_transpositions(pi):
-    transpositions = Permutation([0] + get_list_from_SnElement(pi)).transpositions()
+    transpositions = Permutation([0] + pi).transpositions()
     adyacent_transpositions = []
     for transposition in transpositions:
         adyacent_transpositions += express_transposition_into_adyacent_transpositions(transposition)

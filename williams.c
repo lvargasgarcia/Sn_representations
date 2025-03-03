@@ -48,52 +48,71 @@ void copiar_matriz(mpq_t **A, mpq_t **B, int dim){
 //     }
 // }
 
-#include <stdio.h>
-#include <gmp.h>
-#include <omp.h>
+
+// void multiplicar_matrices(mpq_t **A, mpq_t **B, mpq_t **C, int dim) {
+//     // Determinar si usar paralelización
+//     if (dim > 25) {
+//         #pragma omp parallel for num_threads(4) default(none) shared(A, B, C, dim)
+//         for (int i = 0; i < dim; i++) {
+//             for (int j = 0; j < dim; j++) {
+//                 mpq_set_ui(C[i][j], 0, 1); // Inicializa C[i][j] en 0
+
+//                 mpq_t temp;
+//                 mpq_init(temp); // Inicializar una sola vez
+
+//                 for (int k = 0; k < dim; k++) {
+//                     mpq_mul(temp, A[i][k], B[k][j]);
+//                     mpq_add(C[i][j], C[i][j], temp);
+//                 }
+                
+//                 mpq_clear(temp); // Liberar memoria
+//             }
+//         }
+//     } else {
+//         // Multiplicación secuencial
+//         for (int i = 0; i < dim; i++) {
+//             for (int j = 0; j < dim; j++) {
+//                 mpq_set_ui(C[i][j], 0, 1);
+
+//                 mpq_t temp;
+//                 mpq_init(temp);
+
+//                 for (int k = 0; k < dim; k++) {
+//                     mpq_mul(temp, A[i][k], B[k][j]);
+//                     mpq_add(C[i][j], C[i][j], temp);
+//                 }
+                
+//                 mpq_clear(temp);
+//             }
+//         }
+//     }
+// }
 
 void multiplicar_matrices(mpq_t **A, mpq_t **B, mpq_t **C, int dim) {
-    // Determinar si usar paralelización
-    if (dim > 25) {
-        #pragma omp parallel for num_threads(4) default(none) shared(A, B, C, dim)
-        for (int i = 0; i < dim; i++) {
-            for (int j = 0; j < dim; j++) {
-                mpq_set_ui(C[i][j], 0, 1); // Inicializa C[i][j] en 0
+    int i, j, k; // Declarar las variables antes de la directiva
+    mpq_t temp;  // Declarar temp también
+     
+    #pragma omp parallel for num_threads(3) if(dim > 25) default(none) shared(A, B, C, dim) private(i, j, k, temp)
+    for (i = 0; i < dim; i++) {
+        mpq_init(temp);  // Inicializar temp dentro del bucle paralelo
 
-                mpq_t temp;
-                mpq_init(temp); // Inicializar una sola vez
+        for (k = 0; k < dim; k++) {
+            for (j = 0; j < dim; j++) {
+                if (k == 0) 
+                    mpq_set_ui(C[i][j], 0, 1); // Inicializamos solo una vez
 
-                for (int k = 0; k < dim; k++) {
-                    mpq_mul(temp, A[i][k], B[k][j]);
-                    mpq_add(C[i][j], C[i][j], temp);
-                }
-                
-                mpq_clear(temp); // Liberar memoria
+                mpq_mul(temp, A[i][k], B[k][j]); 
+                mpq_add(C[i][j], C[i][j], temp);
             }
         }
-    } else {
-        // Multiplicación secuencial
-        for (int i = 0; i < dim; i++) {
-            for (int j = 0; j < dim; j++) {
-                mpq_set_ui(C[i][j], 0, 1);
 
-                mpq_t temp;
-                mpq_init(temp);
-
-                for (int k = 0; k < dim; k++) {
-                    mpq_mul(temp, A[i][k], B[k][j]);
-                    mpq_add(C[i][j], C[i][j], temp);
-                }
-                
-                mpq_clear(temp);
-            }
-        }
+        mpq_clear(temp); // Liberar memoria después de usar temp
     }
 }
 
 
-
 void multiplicar_matriz_escalar(mpq_t **A, mpq_t escalar, mpq_t **C, int dim){
+    #pragma omp parallel for collapse(2) num_threads(3) if(dim > 25) default(none) shared(A, escalar, C, dim)
     for(int i = 0; i < dim; i++){
         for(int j = 0; j < dim; j++){
             mpq_mul(C[i][j], A[i][j], escalar);
@@ -206,6 +225,7 @@ void williams_ft(int n, int dim, mpq_t **tau_matrix, mpq_t **qsigmatau_matrix, m
         multiplicar_matriz_escalar(aux_1, f[k], aux_2, dim);
 
         //añadir aux_2 a fourier_matrix
+        #pragma omp parallel for collapse(2) num_threads(3) if(dim > 25) default(none) shared(fourier_matrix, aux_2, dim)
         for(int i = 0; i < dim; i++){
             for(int j = 0; j < dim; j++){
                 mpq_add(fourier_matrix[i][j], fourier_matrix[i][j], aux_2[i][j]);
@@ -267,18 +287,45 @@ mpq_t *williams_invft(int n, int dim, mpq_t **tau_matrix, mpq_t **qsigmatau_matr
     mpq_init(traza);
     mpq_set_si(traza, 0, 1);
 
-    for(int i = 0; i < dim; i++){
-        for(int j = 0; j < dim; j++){
-            mpq_t temp;
-            mpq_init(temp);
-            mpq_mul(temp, fourier_matrix[i][j], p_matrix[j][i]);
-            mpq_add(traza, traza, temp);
-            mpq_clear(temp);
+    #pragma omp parallel if(dim > 25) num_threads(3)
+    {
+        mpq_t local_traza, temp;
+        mpq_init(local_traza);
+        mpq_set_si(local_traza, 0, 1);
+        mpq_init(temp);
+
+        #pragma omp for collapse(2) nowait
+        for (int i = 0; i < dim; i++) {
+            for (int j = 0; j < dim; j++) {
+                mpq_mul(temp, fourier_matrix[i][j], p_matrix[j][i]);
+                mpq_add(local_traza, local_traza, temp);
+            }
         }
+
+        #pragma omp critical
+        {
+            mpq_add(traza, traza, local_traza);
+        }
+
+        mpq_clear(local_traza);
+        mpq_clear(temp);
     }
 
     mpq_mul(invft_vector[0], traza, factor);
     mpq_clear(traza);
+
+    // for(int i = 0; i < dim; i++){
+    //     mpq_t temp;
+    //     mpq_init(temp);
+    //     for(int j = 0; j < dim; j++){
+    //         mpq_mul(temp, fourier_matrix[i][j], p_matrix[j][i]);
+    //         mpq_add(traza, traza, temp);
+    //     }
+    //     mpq_clear(temp);
+    // }
+
+    // mpq_mul(invft_vector[0], traza, factor);
+    // mpq_clear(traza);
 
     for(int k = 1; k < nfact; k++){
         // printf("%d\n", williams_sequence[k]);
@@ -295,18 +342,45 @@ mpq_t *williams_invft(int n, int dim, mpq_t **tau_matrix, mpq_t **qsigmatau_matr
         mpq_init(tr);
         mpq_set_si(tr, 0, 1);
 
-        for(int i = 0; i < dim; i++){
-            for(int j = 0; j < dim; j++){
-                mpq_t tempr;
-                mpq_init(tempr);
-                mpq_mul(tempr, fourier_matrix[i][j], p_matrix[j][i]);
-                mpq_add(tr, tr, tempr);
-                mpq_clear(tempr);
+        #pragma omp parallel if(dim > 25) num_threads(3)
+        {
+            mpq_t local_traza, tempr;
+            mpq_init(local_traza);
+            mpq_set_si(local_traza, 0, 1);
+            mpq_init(tempr);
+    
+            #pragma omp for collapse(2) nowait
+            for (int i = 0; i < dim; i++) {
+                for (int j = 0; j < dim; j++) {
+                    mpq_mul(tempr, fourier_matrix[i][j], p_matrix[j][i]);
+                    mpq_add(local_traza, local_traza, tempr);
+                }
             }
+    
+            #pragma omp critical
+            {
+                mpq_add(tr, tr, local_traza);
+            }
+    
+            mpq_clear(local_traza);
+            mpq_clear(tempr);
         }
-
+    
         mpq_mul(invft_vector[k], tr, factor);
         mpq_clear(tr);
+
+        // for(int i = 0; i < dim; i++){
+        //     mpq_t tempr;
+        //     mpq_init(tempr);
+        //     for(int j = 0; j < dim; j++){
+        //         mpq_mul(tempr, fourier_matrix[i][j], p_matrix[j][i]);
+        //         mpq_add(tr, tr, tempr);
+        //     }
+        //     mpq_clear(tempr);
+        // }
+
+        // mpq_mul(invft_vector[k], tr, factor);
+        // mpq_clear(tr);
 
     }
 
