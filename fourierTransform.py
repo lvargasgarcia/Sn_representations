@@ -1,16 +1,11 @@
 from queue import PriorityQueue
 import json
-import torch
-# import snob as Snob2
-import sys
 import numpy as np
 from irrep import Irrep
-from itertools import permutations
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 import time
 import math
 from fractions import Fraction
-from numba import jit, prange
 from multiprocessing import Pool, cpu_count
 from gmpy2 import mpq, mpz
 from williams_interface import build_coefficient

@@ -1,12 +1,9 @@
-import torch
-import snob as Snob2
-import sys
 import numpy as np
 import math
 from gmpy2 import mpq
 from permutaciones import express_into_adyacent_transpositions
 from matrix_utils import decompress_YOR, decompress, print_matrix
-from functools import reduce
+from youngTableau import *
 
 # Aquí se implementará el objeto que representa una representación irreducible de una partición alpha
 
@@ -24,7 +21,7 @@ class Irrep:
     
     # Constructor de la clase, en principio, el array de matrices estará vacío y se irán calculando según haga falta
 
-    def __init__(self, partition: Snob2.IntegerPartition, mode: str):
+    def __init__(self, partition, mode: str):
         """
         Inicializa una nueva instancia de IrreducibleRepresentation.
 
@@ -37,7 +34,7 @@ class Irrep:
         """
         if mode not in ["YKR", "YSR", "YOR"]:
             raise ValueError("Mode must be 'YKR', 'YSR', or 'YOR'")
-        self.partition = Snob2.IntegerPartition(partition)
+        self.partition = partition
         self.n = sum(partition)
         self.mode = mode
         self.matrices = [None for _ in range(self.n - 1)]
@@ -74,7 +71,7 @@ class Irrep:
 
     def _get_subpartition(self, key, partition):
         resp = [] 
-        for i in range(partition.height()):
+        for i in range(len(partition)):
             k = partition[i] 
             if key == i:
                 k = k - 1
@@ -106,7 +103,7 @@ class Irrep:
     def _get_partition_from_gamma(self, y_symbol, partition):
         resp = [] 
 
-        for i in range(partition.height()):
+        for i in range(len(partition)):
             k = partition[i]
             (a, b) = y_symbol # Desempaquetar la tupla
             if a == i:
@@ -117,13 +114,13 @@ class Irrep:
         while resp and resp[-1] == 0:
             resp.pop()
 
-        return Snob2.IntegerPartition(resp)
+        return resp
 
     # ahora vamos a implementar el calculo de la fórmula de frame-robinson-thrall para una particion 
 
     def _cells_below_cell(self, partition, i, j):
         resp = 0
-        for k in range(i + 1, partition.height()):
+        for k in range(i + 1, len(partition)):
             if(partition[k] >= j + 1):
                 resp = resp + 1
             else:
@@ -132,7 +129,7 @@ class Irrep:
 
     def _hook_length_prod(self, partition):
         resp = 1
-        for i in range(partition.height()):
+        for i in range(len(partition)):
             for j in range(partition[i]):
                 cells_in_row = (partition[i] - j)
                 cells_below = self._cells_below_cell(partition, i, j)
@@ -141,13 +138,13 @@ class Irrep:
         return resp
 
     def _frame_robinson_thrall(self, partition):
-        n = partition.getn()
+        n = sum(partition)
         n_factorial = math.factorial(n)
         den = self._hook_length_prod(partition)
         return int(n_factorial / den)
     
     def _generate_representation_matrix(self, partition, ordered_2ndlev, mode="YKR"):
-        
+
         n = len(ordered_2ndlev)
         matrix = [[[-1,-1,None] for _ in range(n)] for _ in range(n)]
         
@@ -229,15 +226,9 @@ class Irrep:
         return matrix
     
     def _build_irrep(self, partition, mode="YKR"):
-     tableaux_dict = {}
-     T = Snob2.StandardYoungTableaux(partition)
-     for i in range(len(T)):
-          tableau = T[i]
-          key = self._search_young_tableau(tableau)
-          if key and key not in tableaux_dict:
-               tableaux_dict[key] = tableau
-     ordered_2ndlev = sorted(tableaux_dict.keys(), key=lambda t: int(f"{t[0][0]}{t[1][0]}"))
-     matrix = self._generate_representation_matrix(partition, ordered_2ndlev, mode)
+    
+
+     matrix = self._generate_representation_matrix(partition, ordered_2ndlevel_tableaux(partition), mode)
 
      return matrix
 
@@ -282,13 +273,13 @@ class Irrep:
             mode (str, optional): El modo de la representación. Debe ser uno de 'YKR', 'YSR' o 'YOR'. Por defecto es 'YKR'.
         """
         # Caso base, la partición es de n elementos y queremos evaluar la representación en t_n
-        n = partition.getn()
+        n = sum(partition)
         if t_n == n:
             return self._build_irrep(partition, mode)
         else:
             # En otro caso, tenemos que expandir el árbol, es decir
             # Tenemos que calcular todas las transposiciones cuyos tableros de young salen de la actual
-            partitions = self._branch(partition)
+            partitions = ordered_1stlevel_tableaux(partition)
             submatrix_list = []
             for part in partitions:
                 submatrix = self._build_irrep_of_transposition(part, t_n, mode)
@@ -365,7 +356,7 @@ class Irrep:
     #         self.matrices = numerators
 
 
-# rep = Irrep(Snob2.IntegerPartition([4,2]), "YKR")
+rep = Irrep([3,2], "YKR")
 # pi1 = Snob2.SnElement([2,4,1,5,3,6])
 # pi2 = Snob2.SnElement([3,4,5,1,2,6])
 # matrix1 = rep.evaluate(pi1)

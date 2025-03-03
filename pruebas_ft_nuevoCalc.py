@@ -1,13 +1,5 @@
-import torch
-import snob as Snob2
-import cnine
-import sys
 import numpy as np
 import math
-import argparse
-from fractions import Fraction
-from irrep import Irrep
-from snob_base import SnFunction
 import itertools
 import random
 import time
@@ -16,7 +8,7 @@ from permutations_iterator import representar_decimal
 from gmpy2 import mpq
 import matplotlib.pyplot as plt
 
-n = 7
+n = 6
 
 random.seed(44)
 

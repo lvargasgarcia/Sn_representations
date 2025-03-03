@@ -1,5 +1,3 @@
-import torch
-import snob as Snob2
 from sympy.combinatorics import Permutation
 
 
